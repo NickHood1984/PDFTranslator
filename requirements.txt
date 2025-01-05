@@ -4,3 +4,5 @@ numpy
 onnxruntime
 opencv-python
 transformers
+pdf2zh
+PyPDF2

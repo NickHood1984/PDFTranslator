@@ -1,10 +1,18 @@
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const Store = require('electron-store');
+
+const store = new Store({
+    cwd: app.getPath('userData')
+});
 
 let userDataPath = '';
 ipcRenderer.invoke('get-user-data-path').then(path => {
     userDataPath = path;
+    console.log('User data path:', path);
+    // 初始化配置
+    loadConfig();
 });
 
 // 修改这部分，直接使用 path 模块
@@ -24,7 +32,8 @@ function getScriptPath(scriptName) {
     if (isDevEnv) {
         return path.join(__dirname, scriptName);
     } else {
-        return path.join(process.resourcesPath, scriptName);
+        // 在生产环境中，脚本应该在 app.asar.unpacked 中
+        return path.join(process.resourcesPath, 'app.asar.unpacked', scriptName);
     }
 }
 
@@ -107,174 +116,41 @@ function showStatus(type, message) {
     statusDiv.classList.remove('hidden');
 }
 
-// 修改默认配置对象
-let config = {
-    "service": "google",
-    "thread": 4,
-    "lang_in": "en",
-    "lang_out": "zh",
-    "proxy": "",
-    "google": {
-        "url": "translate.googleapis.com"
-    },
-    "azure": {
-        "endpoint": "https://api.translator.azure.cn",
-        "api_key": ""
-    },
-    "deepl": {
-        "auth_key": "",
-        "url": "api-free.deepl.com"
-    },
-    "openai": {
-        "api_key": "",
-        "model": "gpt-3.5-turbo"
-    },
-    "zhipu": {
-        "api_key": "",
-        "model": "glm-3-turbo"
-    },
-    "deepseek": {
-        "api_key": "",
-        "model": "deepseek-chat"
-    }
-};
-
 // 修改加载配置函数
 function loadConfig() {
     try {
-        const configPath = path.join(userDataPath, 'config.json');
-        let defaultConfig = {
-            "service": "google",
-            "thread": 4,
-            "lang_in": "en",
-            "lang_out": "zh",
-            "proxy": "",
-            "google": {
-                "url": "translate.googleapis.com"
-            },
-            "azure": {
-                "endpoint": "https://api.translator.azure.cn",
-                "api_key": ""
-            },
-            "deepl": {
-                "auth_key": "",
-                "url": "api-free.deepl.com"
-            },
-            "openai": {
-                "api_key": "",
-                "model": "gpt-3.5-turbo"
-            },
-            "zhipu": {
-                "api_key": "",
-                "model": "glm-3-turbo"
-            },
-            "deepseek": {
-                "api_key": "",
-                "model": "deepseek-chat"
-            }
+        const config = store.get('config') || {
+            threadCount: 4,
+            service: 'google',
+            outputFormat: 'dual'
         };
-
-        let config = defaultConfig;
         
-        // 如果配置文件存在，则读取并合并配置
-        if (fs.existsSync(configPath)) {
-            const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            config = { ...defaultConfig, ...savedConfig };
-        } else {
-            // 如果配置文件不存在，创建新的配置文件
-            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 4));
-        }
-
-        // 设置UI状态
-        const serviceRadio = document.querySelector(`input[name="service"][value="${config.service}"]`);
-        if (serviceRadio) serviceRadio.checked = true;
-
-        const threadCount = document.getElementById('threadCount');
-        const threadValue = document.getElementById('threadValue');
-        if (threadCount) threadCount.value = config.thread;
-        if (threadValue) threadValue.textContent = config.thread;
-
-        const langIn = document.getElementById('langIn');
-        if (langIn) langIn.value = config.lang_in;
-
-        const proxyUrl = document.getElementById('proxyUrl');
-        if (proxyUrl) proxyUrl.value = config.proxy || '';
-
-        // Azure 设置
-        const azureEndpoint = document.getElementById('azureEndpoint');
-        const azureApiKey = document.getElementById('azureApiKey');
-        if (azureEndpoint) azureEndpoint.value = config.azure?.endpoint || '';
-        if (azureApiKey) azureApiKey.value = config.azure?.api_key || '';
-
-        // DeepL 设置
-        const deeplAuthKey = document.getElementById('deeplAuthKey');
-        if (deeplAuthKey) deeplAuthKey.value = config.deepl?.auth_key || '';
-
-        // OpenAI 设置
-        const openaiApiKey = document.getElementById('openaiApiKey');
-        const openaiModel = document.getElementById('openaiModel');
-        if (openaiApiKey) openaiApiKey.value = config.openai?.api_key || '';
-        if (openaiModel) openaiModel.value = config.openai?.model || '';
-
-        // 智谱AI 设置
-        const zhipuApiKey = document.getElementById('zhipuApiKey');
-        const zhipuModel = document.getElementById('zhipuModel');
-        if (zhipuApiKey) zhipuApiKey.value = config.zhipu?.api_key || '';
-        if (zhipuModel) zhipuModel.value = config.zhipu?.model || '';
-
-        // DeepSeek 设置
-        const deepseekApiKey = document.getElementById('deepseekApiKey');
-        const deepseekModel = document.getElementById('deepseekModel');
-        if (deepseekApiKey) deepseekApiKey.value = config.deepseek?.api_key || '';
-        if (deepseekModel) deepseekModel.value = config.deepseek?.model || '';
-
+        document.getElementById('threadCount').value = config.threadCount;
+        document.getElementById('threadValue').textContent = config.threadCount;
+        document.getElementById('service').value = config.service;
+        document.getElementById('outputFormat').value = config.outputFormat;
+        
         return config;
     } catch (error) {
         console.error('Error loading config:', error);
-        return null;
+        return {
+            threadCount: 4,
+            service: 'google',
+            outputFormat: 'dual'
+        };
     }
 }
 
 // 修改保存配置函数
 function saveConfig() {
     try {
-        const serviceRadio = document.querySelector('input[name="service"]:checked');
-        const threadCount = document.getElementById('threadCount');
-        const langIn = document.getElementById('langIn');
-        const proxyUrl = document.getElementById('proxyUrl');
-
         const config = {
-            service: serviceRadio?.value || 'google',
-            thread: parseInt(threadCount?.value || '4'),
-            lang_in: langIn?.value || 'en',
-            lang_out: "zh",
-            proxy: proxyUrl?.value || '',
-            azure: {
-                endpoint: document.getElementById('azureEndpoint')?.value || '',
-                api_key: document.getElementById('azureApiKey')?.value || ''
-            },
-            deepl: {
-                auth_key: document.getElementById('deeplAuthKey')?.value || '',
-                url: "api-free.deepl.com"
-            },
-            openai: {
-                api_key: document.getElementById('openaiApiKey')?.value || '',
-                model: document.getElementById('openaiModel')?.value || ''
-            },
-            zhipu: {
-                api_key: document.getElementById('zhipuApiKey')?.value || '',
-                model: document.getElementById('zhipuModel')?.value || ''
-            },
-            deepseek: {
-                api_key: document.getElementById('deepseekApiKey')?.value || '',
-                model: document.getElementById('deepseekModel')?.value || ''
-            }
+            threadCount: parseInt(document.getElementById('threadCount').value),
+            service: document.getElementById('service').value,
+            outputFormat: document.getElementById('outputFormat').value
         };
-
-        // 保存到用户数据目录
-        const configPath = path.join(userDataPath, 'config.json');
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
-
+        
+        store.set('config', config);
         return true;
     } catch (error) {
         console.error('Error saving config:', error);
@@ -285,41 +161,31 @@ function saveConfig() {
 // 修改模型检查函数
 async function checkModel() {
     const isDevEnv = isDev();
-    // 使用当前目录作为基准
-    const modelDir = path.join(__dirname, 'models', 'DocLayout-YOLO-DocStructBench-onnx');
-    
-    console.log('Is Dev:', isDevEnv);
-    console.log('Model path:', modelDir);
-    console.log('Current directory:', __dirname);
+    const modelDir = isDevEnv ? 
+        path.join(__dirname, 'models', 'DocLayout-YOLO-DocStructBench-onnx') :
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'models', 'DocLayout-YOLO-DocStructBench-onnx');
     
     const modelStatus = document.getElementById('modelStatus');
     const downloadModelBtn = document.getElementById('downloadModelBtn');
     
     try {
-        if (fs.existsSync(modelDir)) {
-            console.log('Model directory exists');
-            const files = fs.readdirSync(modelDir);
-            console.log('Files in model directory:', files);
-            const onnxFiles = files.filter(file => file.endsWith('.onnx'));
-            
-            if (onnxFiles.length > 0) {
-                console.log('Found ONNX files:', onnxFiles);
-                modelStatus.textContent = '模型已下载';
-                modelStatus.classList.add('text-success');
-                downloadModelBtn.classList.add('hidden');
-                return true;
-            }
-        }
+        const modelPath = path.join(modelDir, 'model.onnx');
+        const exists = fs.existsSync(modelPath);
         
-        console.log('Model directory not found or no ONNX files');
-        modelStatus.textContent = '模型未下载';
-        modelStatus.classList.add('text-error');
-        downloadModelBtn.classList.remove('hidden');
-        return false;
+        if (exists) {
+            modelStatus.textContent = '模型已就绪';
+            modelStatus.className = 'text-success';
+            downloadModelBtn.classList.add('hidden');
+            return true;
+        } else {
+            modelStatus.textContent = '模型未下载';
+            modelStatus.className = 'text-error';
+            downloadModelBtn.classList.remove('hidden');
+            return false;
+        }
     } catch (error) {
-        console.error('Error checking model:', error);
         modelStatus.textContent = '模型检查失败';
-        modelStatus.classList.add('text-error');
+        modelStatus.className = 'text-error';
         downloadModelBtn.classList.remove('hidden');
         return false;
     }
@@ -334,62 +200,106 @@ async function downloadModel() {
     try {
         downloadModelBtn.disabled = true;
         modelStatus.textContent = '正在下载模型...';
+        modelStatus.className = 'text-primary';
         
-        const pythonScript = path.join(__dirname, 'download_model.py');
-        const pythonExe = isDev() ? 
-            '/opt/homebrew/anaconda3/envs/pdftranlate/bin/python3' :
-            path.join(process.resourcesPath, 'python_env', 'bin', 'python3');
+        const pythonScript = getScriptPath('download_model.py');
+        const pythonPath = getPythonPath();
+        const pythonEnvPath = path.dirname(path.dirname(pythonPath));
 
-        console.log('Python executable:', pythonExe);
+        console.log('Starting model download...');
+        console.log('Python executable:', pythonPath);
         console.log('Python script:', pythonScript);
+        console.log('Python env path:', pythonEnvPath);
 
-        const command = `"${pythonExe}" "${pythonScript}"`;
+        // 验证文件存在
+        if (!fs.existsSync(pythonPath)) {
+            throw new Error(`Python解释器未找到: ${pythonPath}`);
+        }
+        if (!fs.existsSync(pythonScript)) {
+            throw new Error(`下载脚本未找到: ${pythonScript}`);
+        }
+
+        const command = `"${pythonPath}" "${pythonScript}"`;
         console.log('Executing command:', command);
         
+        const envVars = {
+            ...process.env,
+            VIRTUAL_ENV: pythonEnvPath,
+            PATH: `${path.join(pythonEnvPath, 'bin')}${path.delimiter}${process.env.PATH}`,
+            PYTHONPATH: path.join(pythonEnvPath, 'lib', 'python3.10'),
+            PYTHONHOME: pythonEnvPath,
+            PYTHONIOENCODING: 'utf-8',
+            LANG: 'en_US.UTF-8',
+            LC_ALL: 'en_US.UTF-8',
+            PYTHONDONTWRITEBYTECODE: '1',
+            PYTHONUNBUFFERED: '1',
+            HF_ENDPOINT: 'https://hf-mirror.com'
+        };
+
+        console.log('Environment variables:', envVars);
+
         const { exec } = require('child_process');
-        const childProcess = exec(command, {
-            env: isDev() ? {
-                ...process.env,  // 只使用当前环境变量
-                HF_ENDPOINT: 'https://hf-mirror.com'
-            } : {
-                ...process.env,
-                PYTHONPATH: path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'lib', 'python3.10', 'site-packages'),
-                PYTHONHOME: path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env'),
-                PATH: `${path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'bin')}:${process.env.PATH}`,
-                HF_ENDPOINT: 'https://hf-mirror.com'
-            }
-        });
+        const childProcess = exec(command, { env: envVars });
+
+        let downloadOutput = '';
+        let errorOutput = '';
 
         childProcess.stdout.on('data', (data) => {
+            downloadOutput += data;
             console.log(`Download output: ${data}`);
-            modelStatus.textContent = data.toString().trim();
+            modelStatus.textContent = data.toString().trim() || '正在下载...';
         });
 
         childProcess.stderr.on('data', (data) => {
+            errorOutput += data;
             console.error(`Download error: ${data}`);
             if (!data.includes('it/s]')) {
                 modelStatus.textContent = `下载错误: ${data}`;
-                modelStatus.classList.add('text-error');
+                modelStatus.className = 'text-error';
             }
         });
 
-        childProcess.on('close', (code) => {
+        childProcess.on('close', async (code) => {
+            console.log('Download process closed with code:', code);
+            console.log('Full output:', downloadOutput);
+            console.log('Error output:', errorOutput);
+
             if (code === 0) {
-                checkModel();
+                console.log('Download completed successfully');
+                const modelExists = await checkModel();
+                if (modelExists) {
+                    statusDiv.textContent = '模型下载成功';
+                    statusDiv.className = 'bg-green-100 text-success rounded-md p-4';
+                } else {
+                    statusDiv.textContent = '模型下载可能未完成，请重试';
+                    statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
+                    downloadModelBtn.disabled = false;
+                }
             } else {
+                console.error('Download failed with code:', code);
                 modelStatus.textContent = '模型下载失败';
-                modelStatus.classList.add('text-error');
+                modelStatus.className = 'text-error';
                 downloadModelBtn.disabled = false;
                 statusDiv.textContent = '模型下载失败，请重试';
                 statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
-                statusDiv.classList.remove('hidden');
             }
+            statusDiv.classList.remove('hidden');
+        });
+
+        childProcess.on('error', (error) => {
+            console.error('Download process error:', error);
+            modelStatus.textContent = `下载错误: ${error.message}`;
+            modelStatus.className = 'text-error';
+            downloadModelBtn.disabled = false;
+            statusDiv.textContent = '模型下载出错';
+            statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
+            statusDiv.classList.remove('hidden');
         });
 
     } catch (error) {
         console.error('Download error:', error);
         modelStatus.textContent = `下载错误: ${error.message}`;
-        modelStatus.classList.add('text-error');
+        modelStatus.className = 'text-error';
         downloadModelBtn.disabled = false;
         statusDiv.textContent = '模型下载出错';
         statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
@@ -398,50 +308,23 @@ async function downloadModel() {
 }
 
 // 更新进度显示
-function updateProgress(stage) {
-    console.log('updateProgress called with stage:', stage);
+function updateProgress(stage, percentage) {
+    console.log('updateProgress called with stage:', stage, 'percentage:', percentage);
 
     const progressContainer = document.querySelector('.progress-container');
     const progressFill = document.querySelector('.progress-fill');
     const progressText = document.querySelector('.progress-text');
     const progressStage = document.querySelector('.progress-stage');
     
-    progressContainer.classList.remove('hidden');
-    
-    // 从进度信息中提取百分比
-    let progress = 0;
-    const percentMatch = stage.match(/(\d+)%/);
-    if (percentMatch) {
-        progress = parseInt(percentMatch[1]);
-        progressStage.textContent = stage;
-    } else {
-        switch (true) {
-            case stage.includes('正在读取 PDF'):
-                progress = 20;
-                progressStage.textContent = '正在读取 PDF';
-                break;
-            case stage.includes('正在解析内容'):
-                progress = 40;
-                progressStage.textContent = '正在解析内容';
-                break;
-            case stage.includes('正在翻译'):
-                progress = 60;
-                progressStage.textContent = '正在翻译';
-                break;
-            case stage.includes('完成'):
-                progress = 100;
-                progressStage.textContent = '翻译完成';
-                break;
-            default:
-                // 保持当前进度，只更新状态文本
-                const currentWidth = progressFill.style.width;
-                progress = parseInt(currentWidth) || 0;
-                progressStage.textContent = stage;
-        }
+    if (!progressContainer || !progressFill || !progressText || !progressStage) {
+        console.error('Progress elements not found');
+        return;
     }
     
-    progressFill.style.width = `${progress}%`;
-    progressText.textContent = `${progress}%`;
+    progressContainer.classList.remove('hidden');
+    progressFill.style.width = `${percentage}%`;
+    progressText.textContent = `${percentage}%`;
+    progressStage.textContent = stage;
     
     // 优化进度条样式
     progressFill.className = 'progress-fill bg-blue-500 transition-all duration-300 h-2';
@@ -460,24 +343,22 @@ ipcRenderer.on('python-output', (event, data) => {
     if (output.includes('Stage:')) {
         const stage = output.split('Stage:')[1].trim();
         console.log('Processing stage:', stage);
-        updateProgress(stage);
+        if (stage === '正在读取 PDF') {
+            updateProgress(stage, 10);
+        } else if (stage === '正在翻译') {
+            updateProgress(stage, 30);
+        }
     } else if (output.includes('转换成功')) {
         console.log('Conversion successful');
         statusDiv.className = 'bg-green-100 text-success rounded-md p-4';
         statusDiv.textContent = '转换成功！';
-        updateProgress('完成');
+        updateProgress('完成', 100);
     } else if (output.includes('使用服务:')) {
         console.log('Service info:', output);
         const service = output.split('使用服务:')[1].trim();
         statusDiv.textContent = `使用${service}服务翻译`;
         statusDiv.className = 'bg-blue-100 text-primary rounded-md p-4';
-    } else if (output.includes('错误堆栈:')) {
-        console.error('Error stack:', output);
-        statusDiv.textContent = `转换错误: ${output.split('错误堆栈:')[1].trim()}`;
-        statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
-        statusDiv.classList.remove('hidden');
-    } else {
-        console.log('Other output:', output);
+        updateProgress(`正在使用${service}服务翻译`, 20);
     }
 });
 
@@ -489,12 +370,47 @@ ipcRenderer.on('python-error', (event, data) => {
 
     // 处理进度条信息
     if (output.includes('%') && (output.includes('it/s') || output.includes('s/it'))) {
-        // 这是进度条信息，不是错误
-        const match = output.match(/(\d+)%/);
+        // 这是tqdm进度条信息
+        const match = output.match(/(\d+)%\|[█▉▊▋▌▍▎▏ ]+\| *(\d+)\/(\d+)/);
         if (match) {
             const percentage = parseInt(match[1]);
-            updateProgress(`正在翻译... ${percentage}%`);
+            const current = parseInt(match[2]);
+            const total = parseInt(match[3]);
+            // 将tqdm的进度映射到30-90之间
+            const mappedPercentage = 30 + (percentage * 0.6);
+            updateProgress(`正在翻译第 ${current}/${total} 页`, Math.round(mappedPercentage));
+            return;
         }
+    }
+
+    // 处理阶段信息
+    if (output.includes('开始执行转换')) {
+        updateProgress('正在初始化...', 5);
+        return;
+    }
+    if (output.includes('输入文件:')) {
+        updateProgress('正在读取PDF...', 10);
+        return;
+    }
+    if (output.includes('成功读取配置')) {
+        updateProgress('正在初始化翻译...', 15);
+        return;
+    }
+    if (output.includes('使用翻译服务:')) {
+        const service = output.match(/使用翻译服务: (\w+)/)?.[1] || 'google';
+        updateProgress(`正在连接${service}翻译服务...`, 20);
+        return;
+    }
+    if (output.includes('PDF文件大小:')) {
+        updateProgress('开始翻译...', 25);
+        return;
+    }
+    if (output.includes('翻译完成')) {
+        updateProgress('翻译完成，正在生成文件...', 95);
+        return;
+    }
+    if (output.includes('生成文件大小')) {
+        updateProgress('转换完成', 100);
         return;
     }
 
@@ -509,7 +425,7 @@ ipcRenderer.on('python-error', (event, data) => {
         return;
     }
 
-    // 处理真正的错误信息
+    // 处理错误信息
     if (output && 
         !output.includes('it/s]') && 
         output.includes('错误') || 
@@ -519,6 +435,45 @@ ipcRenderer.on('python-error', (event, data) => {
         statusDiv.textContent = `转换错误: ${output}`;
         statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
         statusDiv.classList.remove('hidden');
+    }
+});
+
+// 监听主进程发送的进度信息
+ipcRenderer.on('command-progress', (event, data) => {
+    console.log('Received progress:', data);
+    const output = data.toString().trim();
+
+    // 处理进度条信息
+    if (output.includes('%') && (output.includes('it/s') || output.includes('s/it'))) {
+        // 这是tqdm进度条信息
+        const match = output.match(/(\d+)%\|[█▉▊▋▌▍▎▏ ]+\| *(\d+)\/(\d+)/);
+        if (match) {
+            const percentage = parseInt(match[1]);
+            const current = parseInt(match[2]);
+            const total = parseInt(match[3]);
+            // 将tqdm的进度映射到30-90之间
+            const mappedPercentage = 30 + (percentage * 0.6);
+            updateProgress(`正在翻译第 ${current}/${total} 页`, Math.round(mappedPercentage));
+            return;
+        }
+    }
+
+    // 处理阶段信息
+    if (output.includes('开始执行转换')) {
+        updateProgress('正在初始化...', 5);
+    } else if (output.includes('输入文件:')) {
+        updateProgress('正在读取PDF...', 10);
+    } else if (output.includes('成功读取配置')) {
+        updateProgress('正在初始化翻译...', 15);
+    } else if (output.includes('使用翻译服务')) {
+        const service = output.match(/使用翻译服务: (\w+)/)?.[1] || 'google';
+        updateProgress(`正在连接${service}翻译服务...`, 20);
+    } else if (output.includes('PDF文件大小:')) {
+        updateProgress('开始翻译...', 25);
+    } else if (output.includes('翻译完成')) {
+        updateProgress('翻译完成，正在生成文件...', 95);
+    } else if (output.includes('生成文件大小')) {
+        updateProgress('转换完成', 100);
     }
 });
 
@@ -555,15 +510,16 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         document.getElementById('browseButton').disabled = true;
 
         progressContainer.classList.remove('hidden');
-        statusDiv.textContent = '准备开始转换...';
-        statusDiv.className = 'bg-blue-100 text-primary rounded-md p-4';
-        statusDiv.classList.remove('hidden');
+        updateProgress('准备开始...', 0);
+        statusDiv.classList.add('hidden');
         
         const pythonScript = getScriptPath('main.py');
         const pythonPath = getPythonPath();
+        const pythonEnvPath = path.dirname(path.dirname(pythonPath));
         
         console.log('Python executable:', pythonPath);
         console.log('Python script:', pythonScript);
+        console.log('Python env path:', pythonEnvPath);
         
         if (!fs.existsSync(pythonPath)) {
             throw new Error(`Python 解释器未找到: ${pythonPath}`);
@@ -574,82 +530,81 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         }
 
         const configPath = path.join(userDataPath, 'config.json');
-
-        // 构建输出文件路径
-        const inputFileName = path.basename(selectedInputPath, '.pdf');
-        const outputBasePath = path.join(selectedOutputPath, inputFileName);
-
+        const outputBasePath = path.join(selectedOutputPath, path.basename(selectedInputPath, '.pdf'));
         const command = `"${pythonPath}" "${pythonScript}" "${selectedInputPath}" "${outputBasePath}" "${configPath}"`;
+        
         console.log('Executing command:', command);
 
-        // 显示初始状态
-        statusDiv.textContent = '准备开始转换...';
-        statusDiv.className = 'bg-blue-100 text-primary rounded-md p-4';
-        statusDiv.classList.remove('hidden');
-
-        // 设置初始进度
-        updateProgress('正在初始化...');
-
         // 修改环境变量设置
-        const envVars = isDev() ? {
-            ...process.env,  // 只使用当前环境变量
-            HF_ENDPOINT: 'https://hf-mirror.com'
-        } : {
+        const envVars = {
             ...process.env,
-            PYTHONPATH: path.join(process.resourcesPath, 'python_env', 'lib', 'python3.9', 'site-packages'),
-            PYTHONHOME: path.join(process.resourcesPath, 'python_env'),
-            PATH: `${path.join(process.resourcesPath, 'python_env', 'bin')}:${process.env.PATH}`,
-            HF_ENDPOINT: 'https://hf-mirror.com'
+            VIRTUAL_ENV: pythonEnvPath,
+            PATH: `${path.join(pythonEnvPath, 'bin')}${path.delimiter}${process.env.PATH}`,
+            PYTHONPATH: `${path.join(pythonEnvPath, 'lib', 'python3.10')}${path.delimiter}${path.join(pythonEnvPath, 'lib', 'python3.10', 'lib-dynload')}${path.delimiter}${path.join(pythonEnvPath, 'lib', 'python3.10', 'site-packages')}${path.delimiter}${path.join(pythonEnvPath, 'lib', 'python3.10', 'encodings')}`,
+            PYTHONHOME: pythonEnvPath,
+            PYTHONIOENCODING: 'utf-8',
+            LANG: 'en_US.UTF-8',
+            LC_ALL: 'en_US.UTF-8',
+            PYTHONDONTWRITEBYTECODE: '1'
         };
 
+        // 打印详细的环境信息用于调试
+        console.log('Python Environment Info:');
+        console.log('PYTHONPATH:', envVars.PYTHONPATH);
+        console.log('PYTHONHOME:', envVars.PYTHONHOME);
+        console.log('PATH:', envVars.PATH);
+        console.log('Working Directory:', process.cwd());
+
         // 将执行命令的请求发送到主进程
-        ipcRenderer.invoke('execute-command', command, { env: envVars }).then((result) => {
-            console.log('Command execution result:', result);
-            // 处理主进程返回的结果
-            if (result.code === 0) {
-                const dualPath = `${outputBasePath}_双语.pdf`;
-                const monoPath = `${outputBasePath}_译文.pdf`;
+        ipcRenderer.invoke('execute-command', command, { env: envVars })
+            .then((result) => {
+                console.log('Command execution result:', result);
+                // 处理主进程返回的结果
+                if (result.code === 0) {
+                    const dualPath = `${outputBasePath}_双语.pdf`;
+                    const monoPath = `${outputBasePath}_译文.pdf`;
 
-                if (fs.existsSync(dualPath) || fs.existsSync(monoPath)) {
-                    statusDiv.innerHTML = `
-                        <div class="flex flex-col gap-4">
-                            <div class="text-success font-medium">转换完成</div>
-                            <div class="flex gap-2">
-                                ${fs.existsSync(dualPath) ? 
-                                    `<button onclick="shell.openPath('${dualPath}')" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors">
-                                        打开双语版本
-                                    </button>` : ''
-                                }
-                                ${fs.existsSync(monoPath) ? 
-                                    `<button onclick="shell.openPath('${monoPath}')" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors">
-                                        打开译文版本
-                                    </button>` : ''
-                                }
+                    if (fs.existsSync(dualPath) || fs.existsSync(monoPath)) {
+                        statusDiv.innerHTML = `
+                            <div class="flex flex-col gap-4">
+                                <div class="text-success font-medium">转换完成</div>
+                                <div class="flex gap-2">
+                                    ${fs.existsSync(dualPath) ? 
+                                        `<button onclick="openPDF('${dualPath.replace(/'/g, "\\'")}')" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors">
+                                            打开双语版本
+                                        </button>` : ''
+                                    }
+                                    ${fs.existsSync(monoPath) ? 
+                                        `<button onclick="openPDF('${monoPath.replace(/'/g, "\\'")}')" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors">
+                                            打开译文版本
+                                        </button>` : ''
+                                    }
+                                </div>
                             </div>
-                        </div>
-                    `;
-                    statusDiv.className = 'bg-green-50 rounded-lg p-4 shadow-sm';
+                        `;
+                        statusDiv.className = 'bg-green-50 rounded-lg p-4 shadow-sm';
+                    }
+                } else {
+                    statusDiv.textContent = '转换失败';
+                    statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
                 }
-            } else {
-                statusDiv.textContent = '转换失败';
-                statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
-            }
 
-            primaryButton.disabled = false;
-            document.getElementById('fileInput').disabled = false;
-            document.getElementById('browseButton').disabled = false;
-            progressContainer.classList.add('hidden');
-        }).catch((error) => {
-            console.error('Error executing command:', error);
-            statusDiv.textContent = `转换出错: ${error.message}`;
-            statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
-            statusDiv.classList.remove('hidden');
-            
-            primaryButton.disabled = false;
-            document.getElementById('fileInput').disabled = false;
-            document.getElementById('browseButton').disabled = false;
-            progressContainer.classList.add('hidden');
-        });
+                primaryButton.disabled = false;
+                document.getElementById('fileInput').disabled = false;
+                document.getElementById('browseButton').disabled = false;
+                progressContainer.classList.add('hidden');
+            })
+            .catch((error) => {
+                console.error('Error executing command:', error);
+                statusDiv.textContent = `转换出错: ${error.message}`;
+                statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
+                statusDiv.classList.remove('hidden');
+                
+                primaryButton.disabled = false;
+                document.getElementById('fileInput').disabled = false;
+                document.getElementById('browseButton').disabled = false;
+                progressContainer.classList.add('hidden');
+            });
 
     } catch (error) {
         console.error('Conversion error:', error);
@@ -739,65 +694,122 @@ fileInputWrapper.addEventListener('drop', (e) => {
 document.getElementById('downloadModelBtn').addEventListener('click', downloadModel);
 
 // 修改 getPythonPath 函数
-function getPythonPath() {
-    const isDevEnv = isDev();
-    let pythonPath;
+function getPythonEnvPath() {
+    const isDevEnv = !process.resourcesPath?.includes('app.asar');
+    console.log('开发环境:', isDevEnv);
+    console.log('资源路径:', process.resourcesPath);
     
+    let pythonEnvPath;
     if (isDevEnv) {
-        // 开发环境使用 conda 环境
-        pythonPath = '/opt/homebrew/anaconda3/envs/pdftranlate/bin/python3';
-        console.log('Using development Python path:', pythonPath);
+        // 开发环境
+        pythonEnvPath = path.join(process.cwd(), 'python_env');
     } else {
-        // 生产环境使用打包的 Python
-        pythonPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'bin', 'python3');
-        console.log('Using production Python path:', pythonPath);
+        // 生产环境
+        pythonEnvPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env');
     }
     
-    console.log('Environment Info:');
-    console.log('Is Dev:', isDevEnv);
-    console.log('App Path:', process.resourcesPath);
-    console.log('Python Path:', pythonPath);
-    console.log('Working Directory:', process.cwd());
+    console.log('Python 环境路径:', pythonEnvPath);
+    return pythonEnvPath;
+}
+
+function getPythonPath() {
+    const isWindows = process.platform === 'win32';
+    const pythonEnvPath = getPythonEnvPath();
     
-    // 检查文件是否存在
-    if (!fs.existsSync(pythonPath)) {
-        console.error('Python Path Error:');
-        console.error(`Python interpreter not found at: ${pythonPath}`);
-        
-        // 尝试备用路径
-        const altPath = isDevEnv ? pythonPath : path.join(process.resourcesPath, 'python_env', 'bin', 'python3');
-        if (fs.existsSync(altPath)) {
-            console.log('Found Python at alternate path:', altPath);
-            return altPath;
-        }
-        
-        // 列出资源目录内容以便调试
-        try {
-            console.log('Contents of Resources directory:');
-            const resourcesContents = fs.readdirSync(process.resourcesPath);
-            console.log(resourcesContents);
-            
-            if (!isDevEnv) {
-                // 检查 app.asar.unpacked 目录
-                const unpackedPath = path.join(process.resourcesPath, 'app.asar.unpacked');
-                if (fs.existsSync(unpackedPath)) {
-                    console.log('Contents of app.asar.unpacked directory:');
-                    const unpackedContents = fs.readdirSync(unpackedPath);
-                    console.log(unpackedContents);
-                }
+    let pythonExecutable;
+    if (isWindows) {
+        // Windows 环境下的路径检查顺序
+        const possiblePaths = [
+            path.join(pythonEnvPath, 'python.exe'),           // 根目录
+            path.join(pythonEnvPath, 'Scripts', 'python.exe') // Scripts 目录
+        ];
+
+        // 使用 Windows 风格的路径分隔符
+        const normalizedPaths = possiblePaths.map(p => p.replace(/\//g, '\\'));
+        console.log('检查 Python 路径:', normalizedPaths);
+
+        for (const testPath of normalizedPaths) {
+            console.log('测试 Python 路径:', testPath);
+            if (fs.existsSync(testPath)) {
+                pythonExecutable = testPath;
+                console.log('找到 Python 路径:', pythonExecutable);
+                break;
             }
-        } catch (err) {
-            console.error('Error listing directories:', err);
         }
-        
-        throw new Error(`Python interpreter not found at: ${pythonPath}`);
+
+        if (!pythonExecutable) {
+            throw new Error(`未找到 Python 解释器，已检查以下路径：\n${normalizedPaths.join('\n')}`);
+        }
+    } else {
+        // macOS/Linux 环境
+        pythonExecutable = path.join(pythonEnvPath, 'bin', 'python3');
+        if (!fs.existsSync(pythonExecutable)) {
+            throw new Error(`未找到 Python 解释器: ${pythonExecutable}`);
+        }
     }
+
+    return pythonExecutable;
+}
+
+// 添加打开PDF文件的函数
+function openPDF(filePath) {
+    console.log('Opening PDF:', filePath);
+    shell.openPath(filePath).catch(err => {
+        console.error('Error opening PDF:', err);
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = `打开文件失败: ${err.message}`;
+        statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
+        statusDiv.classList.remove('hidden');
+    });
+}
+
+// 将openPDF函数添加到window对象，使其可以从HTML中调用
+window.openPDF = openPDF;
+
+// 在文件顶部添加
+let isInitialized = false;
+
+// 修改初始化函数
+async function initialize() {
+    if (isInitialized) return;
     
+    try {
+        await loadConfig();
+        await checkModel();
+        isInitialized = true;
+    } catch (error) {
+        console.error('初始化失败:', error);
+    }
+}
+
+// 延迟加载非关键资源
+document.addEventListener('DOMContentLoaded', () => {
+    // 立即显示UI
+    document.body.style.visibility = 'visible';
+    
+    // 延迟初始化
+    setTimeout(initialize, 100);
+    
+    // 设置事件监听器
+    setupEventListeners();
+});
+
+// 将事件监听器设置分离出来
+function setupEventListeners() {
+    // ... 原有的事件监听器代码 ...
+}
+
+// 获取Python可执行文件路径
+function getPythonExecutable() {
+    const isWindows = process.platform === 'win32';
+    const pythonPath = isWindows 
+        ? path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'python.exe')
+        : path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'bin', 'python3');
     return pythonPath;
 }
 
-// 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    loadConfig();
-    checkModel();
-}); 
+// 获取配置文件路径
+function getConfigPath() {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, 'config.json');
+} 

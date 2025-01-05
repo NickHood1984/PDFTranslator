@@ -1,91 +1,167 @@
 {
   "name": "pdf-translator",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "PDF翻译工具",
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:dir": "electron-builder --dir"
+    "dev": "npm run build:css && electron .",
+    "build:css": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind.min.css --minify",
+    "build:css:watch": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind.min.css --watch",
+    "build:mac": "npm run build:css && electron-builder --mac",
+    "build:win": "npm run build:css && cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ ELECTRON_CUSTOM_DIR=28.3.3 ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true electron-builder --win",
+    "build:dir": "npm run build:css && electron-builder --dir"
   },
   "build": {
     "appId": "com.pdf.translator",
     "productName": "PDF翻译工具",
+    "asar": {
+      "smartUnpack": true
+    },
+    "files": [
+      "**/*",
+      "!python_env/**/*",
+      "!models/**/*",
+      "!**/__pycache__/**",
+      "!**/*.pyc",
+      "!**/*.pyo",
+      "!**/*.pyd",
+      "!**/*.so",
+      "!**/*.dylib",
+      "!**/.DS_Store",
+      "styles/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "models",
+        "to": "app.asar.unpacked/models",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".",
+        "to": "app.asar.unpacked",
+        "filter": [
+          "*.py"
+        ]
+      }
+    ],
     "mac": {
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
       "category": "public.app-category.utilities",
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
-        },
-        {
-          "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "build/icon.icns",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
         "NSDocumentsFolderUsageDescription": "请允许访问文档文件夹",
         "NSDownloadsFolderUsageDescription": "请允许访问下载文件夹"
-      }
+      },
+      "extraResources": [
+        {
+          "from": "python_env/lib/python3.10/encodings",
+          "to": "app.asar.unpacked/python_env/Lib/encodings"
+        },
+        {
+          "from": "python_env/lib/python3.10/lib-dynload",
+          "to": "app.asar.unpacked/python_env/Lib/lib-dynload"
+        },
+        {
+          "from": "python_env/lib/python3.10/site-packages",
+          "to": "app.asar.unpacked/python_env/Lib/site-packages"
+        }
+      ]
     },
     "win": {
-      "target": ["nsis"],
-      "icon": "build/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "python_env",
+          "to": "app.asar.unpacked/python_env",
+          "filter": [
+            "**/*",
+            "!**/__pycache__/**",
+            "!**/*.pyc",
+            "!**/*.pyo",
+            "!**/*.pyd",
+            "!**/.DS_Store"
+          ]
+        },
+        {
+          "from": "python_env/Scripts",
+          "to": "app.asar.unpacked/python_env/Scripts",
+          "filter": ["**/*"]
+        },
+        {
+          "from": "python_env/python.exe",
+          "to": "app.asar.unpacked/python_env/python.exe"
+        },
+        {
+          "from": "python_env/Lib",
+          "to": "app.asar.unpacked/python_env/Lib",
+          "filter": ["**/*"]
+        },
+        {
+          "from": "models",
+          "to": "app.asar.unpacked/models",
+          "filter": ["**/*"]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "allowElevation": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": true
     },
-    "files": [
-      "**/*",
-      "!models/DocLayout-YOLO-DocStructBench-onnx/model.onnx",
-      "!python/venv/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "models",
-        "to": "models",
-        "filter": ["**/*"]
-      },
-      {
-        "from": "/opt/homebrew/anaconda3/envs/pdftranlate",
-        "to": "python_env",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc",
-          "!**/*.pyo",
-          "!**/*.pyd",
-          "!**/*.dist-info/**",
-          "!**/*.egg-info/**"
-        ]
-      }
-    ],
-    "asar": {
-      "smartUnpack": true
+    "portable": {
+      "artifactName": "${productName}-Windows-Portable-${version}-${arch}.${ext}"
     },
-    "asarUnpack": [
-      "python_env/**/*",
-      "models/**/*"
-    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/",
+      "customDir": "28.3.3"
     }
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.2.0"
   },
   "devDependencies": {
-    "electron": "^28.1.0",
-    "electron-builder": "^24.9.1"
+    "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
+    "electron": "28.3.3",
+    "electron-builder": "^24.9.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
   }
 }

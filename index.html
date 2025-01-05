@@ -2,25 +2,30 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF翻译工具</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#3B82F6',
-                        secondary: '#6B7280',
-                        success: '#10B981',
-                        error: '#EF4444',
-                    }
-                }
-            }
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="styles/tailwind.min.css" as="style">
+    <!-- 使用本地Tailwind CSS -->
+    <link href="styles/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* 初始隐藏body，等待资源加载 */
+        body {
+            visibility: hidden;
         }
-    </script>
+        /* 添加自定义样式 */
+        .text-error {
+            color: #dc2626;
+        }
+        .text-success {
+            color: #059669;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
         <!-- 顶部导航栏 -->
         <nav class="bg-white shadow-sm rounded-lg mb-8 p-4 flex justify-between items-center">
