@@ -1,0 +1,96 @@
+{
+  "name": "pdf2markdown",
+  "version": "1.0.0",
+  "description": "PDF translation tool",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win --x64",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.pdf2markdown.app",
+    "productName": "PDFTranslator",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer.js",
+      "index.html"
+    ],
+    "extraResources": [
+      {
+        "from": ".",
+        "to": ".",
+        "filter": ["main.py", "download_model.py"]
+      },
+      {
+        "from": "/opt/homebrew/anaconda3/envs/pdftranlate",
+        "to": "python_env",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.pyo",
+          "!**/*.pyd",
+          "!**/test/**",
+          "!**/tests/**",
+          "!**/*.dist-info/**",
+          "!**/*.egg-info/**",
+          "!**/gradio*/**",
+          "!**/tencentcloud*/**"
+        ]
+      },
+      {
+        "from": "./models",
+        "to": "models",
+        "filter": ["**/*"]
+      }
+    ],
+    "asar": {
+      "smartUnpack": true
+    },
+    "asarUnpack": [
+      "models/**/*",
+      "python_env/**/*"
+    ],
+    "mac": {
+      "target": ["dmg"],
+      "identity": null,
+      "category": "public.app-category.productivity",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PDFTranslator",
+      "perMachine": false,
+      "deleteAppDataOnUninstall": true,
+      "include": "build/installer.nsh"
+    }
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.9.8",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "marked": "^9.0.0",
+    "markdown-pdf": "^11.0.0",
+    "mathjax": "^3.2.2"
+  }
+}

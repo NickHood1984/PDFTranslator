@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>PDF翻译工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#6B7280',
+                        success: '#10B981',
+                        error: '#EF4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- 顶部导航栏 -->
+        <nav class="bg-white shadow-sm rounded-lg mb-8 p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-semibold text-gray-800">PDF翻译工具</h1>
+            <button id="settingsButton" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                </svg>
+                设置
+            </button>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <div class="bg-white shadow-sm rounded-lg p-6 space-y-6">
+            <!-- 模型状态 -->
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center space-x-2">
+                    <div id="modelStatus" class="text-sm font-medium text-gray-700">检查中...</div>
+                </div>
+                <button id="downloadModelBtn" class="hidden inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    下载模型
+                </button>
+            </div>
+
+            <!-- 文件上传区域 -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors duration-200 file-input-wrapper">
+                <div class="space-y-4">
+                    <div class="flex justify-center">
+                        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        <button id="fileInput" class="relative cursor-pointer rounded-md font-medium text-primary hover:text-blue-600 focus-within:outline-none">
+                            点击上传
+                        </button>
+                        <span class="text-gray-500"> 或拖拽PDF文件到此处</span>
+                    </div>
+                    <div id="selectedFile" class="text-sm text-gray-500"></div>
+                </div>
+            </div>
+
+            <!-- 输出路径选择 -->
+            <div class="space-y-4">
+                <div class="flex space-x-2">
+                    <input type="text" id="outputPath" readonly placeholder="选择输出位置" class="flex-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                    <button id="browseButton" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        选择位置
+                    </button>
+                </div>
+                <button id="convertButton" class="w-full inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    开始转换
+                </button>
+            </div>
+
+            <!-- 进度条 -->
+            <div class="progress-container hidden space-y-2">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="progress-fill bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600">
+                    <div class="progress-text">准备中...</div>
+                    <div class="progress-stage"></div>
+                </div>
+            </div>
+
+            <!-- 状态信息 -->
+            <div id="status" class="hidden rounded-md p-4"></div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">设置</h2>
+                <button id="closeSettings" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- 线程设置 -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">线程数</label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" id="threadCount" min="1" max="16" value="4" class="w-full">
+                        <span id="threadValue" class="text-sm text-gray-600">4</span>
+                    </div>
+                </div>
+
+                <!-- 语言设置 -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">源语言</label>
+                    <select id="langIn" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        <option value="en">英语</option>
+                        <option value="ja">日语</option>
+                        <option value="ko">韩语</option>
+                        <option value="fr">法语</option>
+                        <option value="de">德语</option>
+                    </select>
+                </div>
+
+                <!-- 代理设置 -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">代理地址</label>
+                    <input type="text" id="proxyUrl" placeholder="http://127.0.0.1:7890" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                </div>
+
+                <!-- 翻译服务选择 -->
+                <div class="space-y-4">
+                    <label class="block text-sm font-medium text-gray-700">翻译服务</label>
+                    
+                    <!-- Google 翻译 -->
+                    <div class="border rounded-lg p-4 hover:border-primary transition-colors duration-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <input type="radio" name="service" value="google" class="text-primary">
+                            <span class="font-medium">Google 翻译</span>
+                        </div>
+                    </div>
+
+                    <!-- Azure 翻译 -->
+                    <div class="border rounded-lg p-4 hover:border-primary transition-colors duration-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <input type="radio" name="service" value="azure" class="text-primary">
+                            <span class="font-medium">Azure 翻译</span>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="text" id="azureEndpoint" placeholder="API地址" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                            <input type="text" id="azureApiKey" placeholder="API密钥" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- DeepL 翻译 -->
+                    <div class="border rounded-lg p-4 hover:border-primary transition-colors duration-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <input type="radio" name="service" value="deepl" class="text-primary">
+                            <span class="font-medium">DeepL</span>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="text" id="deeplAuthKey" placeholder="Auth Key" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- OpenAI -->
+                    <div class="border rounded-lg p-4 hover:border-primary transition-colors duration-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <input type="radio" name="service" value="openai" class="text-primary">
+                            <span class="font-medium">OpenAI</span>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="text" id="openaiApiKey" placeholder="API密钥" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                            <input type="text" id="openaiModel" placeholder="模型名称" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- 智谱AI -->
+                    <div class="border rounded-lg p-4 hover:border-primary transition-colors duration-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <input type="radio" name="service" value="zhipu" class="text-primary">
+                            <span class="font-medium">智谱AI</span>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="text" id="zhipuApiKey" placeholder="API密钥" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                            <input type="text" id="zhipuModel" placeholder="模型名称" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- DeepSeek -->
+                    <div class="border rounded-lg p-4 hover:border-primary transition-colors duration-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <input type="radio" name="service" value="deepseek" class="text-primary">
+                            <span class="font-medium">DeepSeek</span>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="text" id="deepseekApiKey" placeholder="API密钥" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                            <input type="text" id="deepseekModel" placeholder="模型名称" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-4">
+                <button id="closeSettings" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                    取消
+                </button>
+                <button id="saveSettings" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-blue-600">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html> 
