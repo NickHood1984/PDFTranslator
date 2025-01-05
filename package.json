@@ -1,31 +1,59 @@
 {
-  "name": "pdf2markdown",
+  "name": "pdf-translator",
   "version": "1.0.0",
-  "description": "PDF translation tool",
+  "description": "PDF翻译工具",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
     "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win --x64",
-    "pack": "electron-builder --dir"
+    "build:win": "electron-builder --win",
+    "build:dir": "electron-builder --dir"
   },
   "build": {
-    "appId": "com.pdf2markdown.app",
-    "productName": "PDFTranslator",
-    "directories": {
-      "output": "dist"
+    "appId": "com.pdf.translator",
+    "productName": "PDF翻译工具",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSDocumentsFolderUsageDescription": "请允许访问文档文件夹",
+        "NSDownloadsFolderUsageDescription": "请允许访问下载文件夹"
+      }
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "files": [
-      "main.js",
-      "renderer.js",
-      "index.html"
+      "**/*",
+      "!models/DocLayout-YOLO-DocStructBench-onnx/model.onnx",
+      "!python/venv/**/*"
     ],
     "extraResources": [
       {
-        "from": ".",
-        "to": ".",
-        "filter": ["main.py", "download_model.py"]
+        "from": "models",
+        "to": "models",
+        "filter": ["**/*"]
       },
       {
         "from": "/opt/homebrew/anaconda3/envs/pdftranlate",
@@ -36,60 +64,28 @@
           "!**/*.pyc",
           "!**/*.pyo",
           "!**/*.pyd",
-          "!**/test/**",
-          "!**/tests/**",
           "!**/*.dist-info/**",
-          "!**/*.egg-info/**",
-          "!**/gradio*/**"
+          "!**/*.egg-info/**"
         ]
-      },
-      {
-        "from": "./models",
-        "to": "models",
-        "filter": ["**/*"]
       }
     ],
     "asar": {
       "smartUnpack": true
     },
     "asarUnpack": [
-      "models/**/*",
-      "python_env/**/*"
+      "python_env/**/*",
+      "models/**/*"
     ],
-    "mac": {
-      "target": ["dmg"],
-      "identity": null,
-      "category": "public.app-category.productivity",
-      "darkModeSupport": true,
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
-    },
-    "win": {
-      "target": ["nsis"],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "PDFTranslator",
-      "perMachine": false,
-      "deleteAppDataOnUninstall": true,
-      "include": "build/installer.nsh"
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
     }
   },
-  "author": "Your Name",
-  "license": "MIT",
-  "devDependencies": {
-    "electron": "^25.9.8",
-    "electron-builder": "^24.13.3"
-  },
   "dependencies": {
-    "marked": "^9.0.0",
-    "markdown-pdf": "^11.0.0",
-    "mathjax": "^3.2.2"
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
   }
 }

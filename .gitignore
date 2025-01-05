@@ -1,26 +1,18 @@
-# 构建输出
-dist/
-build/win-unpacked/
-build/mac/
-
-# 依赖
+# Dependencies
 node_modules/
-python_env/
-
-# Python
+python/venv/
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
+# Build outputs
+dist/
+build/
+*.spec
 
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
+# Environment
+.env
+.env.local
+.env.*.local
 
 # IDE
 .idea/
@@ -28,12 +20,21 @@ Desktop.ini
 *.swp
 *.swo
 
-# 日志
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# 环境文件
-.env
-.env.local
-.env.*.local
+# Python
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Large model files
+models/**/*.onnx

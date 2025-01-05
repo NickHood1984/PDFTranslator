@@ -1,0 +1,30 @@
+{
+    "service": "google",
+    "thread": 4,
+    "lang_in": "en",
+    "lang_out": "zh",
+    "proxy": "",
+    "google": {
+        "url": "translate.googleapis.com"
+    },
+    "azure": {
+        "endpoint": "https://api.translator.azure.cn",
+        "api_key": ""
+    },
+    "deepl": {
+        "auth_key": "",
+        "url": "api-free.deepl.com"
+    },
+    "openai": {
+        "api_key": "",
+        "model": "gpt-3.5-turbo"
+    },
+    "zhipu": {
+        "api_key": "",
+        "model": "glm-3-turbo"
+    },
+    "deepseek": {
+        "api_key": "",
+        "model": "deepseek-chat"
+    }
+}

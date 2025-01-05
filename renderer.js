@@ -1,126 +1,29 @@
-const { ipcRenderer, contextBridge } = require('electron');
+const { ipcRenderer } = require('electron');
 const path = require('path');
-const { shell } = require('electron');
 const fs = require('fs');
-const { execSync } = require('child_process');
 
-// 改用 ipcRenderer 获取用户数据路径
 let userDataPath = '';
 ipcRenderer.invoke('get-user-data-path').then(path => {
     userDataPath = path;
 });
 
-// 使用独立的 Python 环境路径
+// 修改这部分，直接使用 path 模块
 const PYTHON_DIR = path.join(process.resourcesPath, 'python');
 
-// 添加一个函数来判断是否在开发环境
+// 修改判断开发环境的函数
 function isDev() {
-    // 检查是否在开发环境
-    return !process.resourcesPath.includes('.app');
+    // 检查是否在 electron 目录下运行
+    return process.resourcesPath.includes('electron/dist');
 }
 
-// 修改 Python 解释器路径获取函数
-function getPythonPath() {
-    const isDevEnv = isDev();
-    let pythonPath;
-    
-    if (isDevEnv) {
-        pythonPath = '/opt/homebrew/anaconda3/envs/pdftranlate/bin/python3';
-    } else {
-        // 使用 python_env 路径
-        pythonPath = path.join(process.resourcesPath, 'python_env', 'bin', 'python3');
-    }
-    
-    console.log('Environment Info:');
-    console.log('Is Dev:', isDevEnv);
-    console.log('App Path:', process.resourcesPath);
-    console.log('Python Path:', pythonPath);
-    console.log('Working Directory:', process.cwd());
-    
-    // 检查文件是否存在
-    if (!fs.existsSync(pythonPath)) {
-        console.error('Python Path Error:');
-        console.error(`Python interpreter not found at: ${pythonPath}`);
-        
-        // 检查资源目录结构
-        console.error('Resources directory structure:');
-        function listDirRecursive(dir, level = 0) {
-            if (level > 5) return; // 限制递归深度
-            const indent = '  '.repeat(level);
-            try {
-                const items = fs.readdirSync(dir);
-                items.forEach(item => {
-                    const fullPath = path.join(dir, item);
-                    try {
-                        const stats = fs.statSync(fullPath);
-                        const isExecutable = (stats.mode & fs.constants.S_IXUSR) !== 0;
-                        console.error(`${indent}${item}${stats.isDirectory() ? '/' : ''}${isExecutable ? '*' : ''}`);
-                        if (stats.isDirectory() && level < 3) {
-                            listDirRecursive(fullPath, level + 1);
-                        }
-                    } catch (err) {
-                        console.error(`${indent}${item} (error: ${err.message})`);
-                    }
-                });
-            } catch (err) {
-                console.error(`Error reading directory ${dir}: ${err.message}`);
-            }
-        }
-        
-        try {
-            console.error('Contents of Resources directory:');
-            listDirRecursive(process.resourcesPath);
-        } catch (err) {
-            console.error('Error listing directory:', err);
-        }
-        
-        throw new Error(`Python interpreter not found at: ${pythonPath}`);
-    }
-    
-    // 检查文件权限
-    try {
-        fs.accessSync(pythonPath, fs.constants.X_OK);
-    } catch (err) {
-        console.error('Permission Error:');
-        console.error(`Python interpreter is not executable: ${pythonPath}`);
-        // 尝试修复权限
-        try {
-            execSync(`chmod +x "${pythonPath}"`);
-            console.log('Fixed Python interpreter permissions');
-        } catch (chmodErr) {
-            console.error('Failed to fix permissions:', chmodErr);
-            throw new Error(`Python interpreter is not executable and cannot fix permissions: ${pythonPath}`);
-        }
-    }
-    
-    // 设置 Python 环境变量
-    const pythonEnv = {
-        ...process.env,
-        PYTHONPATH: path.join(process.resourcesPath, 'python_env', 'lib', 'python3.9', 'site-packages'),
-        PYTHONHOME: path.join(process.resourcesPath, 'python_env'),
-        PATH: `${path.join(process.resourcesPath, 'python_env', 'bin')}:${process.env.PATH}`
-    };
-    
-    // 验证 Python 环境
-    try {
-        execSync(`"${pythonPath}" -c "import sys; print(sys.version)"`, { env: pythonEnv });
-        console.log('Python environment verified successfully');
-    } catch (error) {
-        console.error('Python environment verification failed:', error);
-        throw new Error('Python environment verification failed');
-    }
-    
-    return pythonPath;
-}
-
-// 修改 Python 脚本路径获取函数
+// 修改获取脚本路径的函数
 function getScriptPath(scriptName) {
     const isDevEnv = isDev();
+    console.log('Current directory:', __dirname);
     
     if (isDevEnv) {
         return path.join(__dirname, scriptName);
     } else {
-        // 修改这里，直接使用 Resources 目录下的路径
         return path.join(process.resourcesPath, scriptName);
     }
 }
@@ -168,51 +71,41 @@ function handleFileSelection(file) {
     }
 }
 
-// 文件选择处理
+// 文件选择按钮点击处理
 document.getElementById('fileInput').addEventListener('click', async () => {
     try {
-        const result = await ipcRenderer.invoke('select-file');
-        
-        if (!result.canceled && result.filePaths.length > 0) {
-            const filePath = result.filePaths[0];
-            const fileName = path.basename(filePath);
-            handleFileSelection({
-                name: fileName,
-                path: filePath
-            });
+        const filePath = await ipcRenderer.invoke('select-file');
+        if (filePath) {
+            document.getElementById('selectedFile').textContent = filePath;
+            handleFileSelection({ path: filePath, name: path.basename(filePath) });
         }
     } catch (error) {
         console.error('File selection error:', error);
-        const statusDiv = document.getElementById('status');
-        statusDiv.textContent = '文件选择出错';
-        statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
-        statusDiv.classList.remove('hidden');
+        showStatus('error', '文件选择出错：' + error.message);
     }
 });
 
-// 输出路径选择
+// 输出路径选择按钮点击处理
 document.getElementById('browseButton').addEventListener('click', async () => {
     try {
-        // 使用当前选择的PDF文件所在目录作为默认目录
-        const defaultDir = selectedInputPath ? path.dirname(selectedInputPath) : process.cwd();
-        
-        const result = await ipcRenderer.invoke('select-save-path', {
-            defaultPath: defaultDir,
-            properties: ['openDirectory', 'createDirectory']
-        });
-        
-        if (!result.canceled && result.filePaths && result.filePaths[0]) {
-            selectedOutputPath = result.filePaths[0];
-            document.getElementById('outputPath').value = selectedOutputPath;
+        const dirPath = await ipcRenderer.invoke('select-directory');
+        if (dirPath) {
+            document.getElementById('outputPath').value = dirPath;
+            selectedOutputPath = dirPath;
         }
     } catch (error) {
-        console.error('Save path selection error:', error);
-        const statusDiv = document.getElementById('status');
-        statusDiv.textContent = '输出路径选择出错';
-        statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
-        statusDiv.classList.remove('hidden');
+        console.error('Directory selection error:', error);
+        showStatus('error', '输出路径选择出错：' + error.message);
     }
 });
+
+// 显示状态信息的辅助函数
+function showStatus(type, message) {
+    const statusDiv = document.getElementById('status');
+    statusDiv.className = `rounded-md p-4 ${type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`;
+    statusDiv.textContent = message;
+    statusDiv.classList.remove('hidden');
+}
 
 // 修改默认配置对象
 let config = {
@@ -392,22 +285,25 @@ function saveConfig() {
 // 修改模型检查函数
 async function checkModel() {
     const isDevEnv = isDev();
-    const modelDir = isDevEnv 
-        ? path.join(__dirname, 'models', 'DocLayout-YOLO-DocStructBench-onnx')
-        : path.join(process.resourcesPath, 'models', 'DocLayout-YOLO-DocStructBench-onnx');
+    // 使用当前目录作为基准
+    const modelDir = path.join(__dirname, 'models', 'DocLayout-YOLO-DocStructBench-onnx');
     
     console.log('Is Dev:', isDevEnv);
     console.log('Model path:', modelDir);
+    console.log('Current directory:', __dirname);
     
     const modelStatus = document.getElementById('modelStatus');
     const downloadModelBtn = document.getElementById('downloadModelBtn');
     
     try {
         if (fs.existsSync(modelDir)) {
+            console.log('Model directory exists');
             const files = fs.readdirSync(modelDir);
+            console.log('Files in model directory:', files);
             const onnxFiles = files.filter(file => file.endsWith('.onnx'));
             
             if (onnxFiles.length > 0) {
+                console.log('Found ONNX files:', onnxFiles);
                 modelStatus.textContent = '模型已下载';
                 modelStatus.classList.add('text-success');
                 downloadModelBtn.classList.add('hidden');
@@ -415,6 +311,7 @@ async function checkModel() {
             }
         }
         
+        console.log('Model directory not found or no ONNX files');
         modelStatus.textContent = '模型未下载';
         modelStatus.classList.add('text-error');
         downloadModelBtn.classList.remove('hidden');
@@ -438,23 +335,28 @@ async function downloadModel() {
         downloadModelBtn.disabled = true;
         modelStatus.textContent = '正在下载模型...';
         
-        const { exec } = require('child_process');
-        const pythonScript = path.join(process.resourcesPath, 'download_model.py');
-        const pythonExe = path.join(process.resourcesPath, 'python_env', 'bin', 'python3');
+        const pythonScript = path.join(__dirname, 'download_model.py');
+        const pythonExe = isDev() ? 
+            '/opt/homebrew/anaconda3/envs/pdftranlate/bin/python3' :
+            path.join(process.resourcesPath, 'python_env', 'bin', 'python3');
 
-        console.log('Python executable:', pythonExe); // 添加日志
-        console.log('Python script:', pythonScript); // 添加日志
+        console.log('Python executable:', pythonExe);
+        console.log('Python script:', pythonScript);
 
         const command = `"${pythonExe}" "${pythonScript}"`;
-        console.log('Executing command:', command); // 添加日志
+        console.log('Executing command:', command);
         
+        const { exec } = require('child_process');
         const childProcess = exec(command, {
-            env: {
+            env: isDev() ? {
+                ...process.env,  // 只使用当前环境变量
+                HF_ENDPOINT: 'https://hf-mirror.com'
+            } : {
                 ...process.env,
-                HF_ENDPOINT: 'https://hf-mirror.com',
                 PYTHONPATH: path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'lib', 'python3.10', 'site-packages'),
                 PYTHONHOME: path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env'),
-                PATH: `${path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'bin')}:${process.env.PATH}`
+                PATH: `${path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'bin')}:${process.env.PATH}`,
+                HF_ENDPOINT: 'https://hf-mirror.com'
             }
         });
 
@@ -688,18 +590,20 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         // 设置初始进度
         updateProgress('正在初始化...');
 
+        // 修改环境变量设置
+        const envVars = isDev() ? {
+            ...process.env,  // 只使用当前环境变量
+            HF_ENDPOINT: 'https://hf-mirror.com'
+        } : {
+            ...process.env,
+            PYTHONPATH: path.join(process.resourcesPath, 'python_env', 'lib', 'python3.9', 'site-packages'),
+            PYTHONHOME: path.join(process.resourcesPath, 'python_env'),
+            PATH: `${path.join(process.resourcesPath, 'python_env', 'bin')}:${process.env.PATH}`,
+            HF_ENDPOINT: 'https://hf-mirror.com'
+        };
+
         // 将执行命令的请求发送到主进程
-        ipcRenderer.invoke('execute-command', command, {
-            env: {
-                ...process.env,
-                PYTHONPATH: path.join(process.resourcesPath, 'python_env', 'lib', 'python3.9', 'site-packages'),
-                PYTHONHOME: path.join(process.resourcesPath, 'python_env'),
-                PATH: `${path.join(process.resourcesPath, 'python_env', 'bin')}:${process.env.PATH}`,
-                HF_ENDPOINT: 'https://hf-mirror.com',
-                PYTHONIOENCODING: 'utf-8',
-                PYTHONUNBUFFERED: '1'
-            }
-        }).then((result) => {
+        ipcRenderer.invoke('execute-command', command, { env: envVars }).then((result) => {
             console.log('Command execution result:', result);
             // 处理主进程返回的结果
             if (result.code === 0) {
@@ -833,6 +737,64 @@ fileInputWrapper.addEventListener('drop', (e) => {
 
 // 下载按钮事件监听器
 document.getElementById('downloadModelBtn').addEventListener('click', downloadModel);
+
+// 修改 getPythonPath 函数
+function getPythonPath() {
+    const isDevEnv = isDev();
+    let pythonPath;
+    
+    if (isDevEnv) {
+        // 开发环境使用 conda 环境
+        pythonPath = '/opt/homebrew/anaconda3/envs/pdftranlate/bin/python3';
+        console.log('Using development Python path:', pythonPath);
+    } else {
+        // 生产环境使用打包的 Python
+        pythonPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'python_env', 'bin', 'python3');
+        console.log('Using production Python path:', pythonPath);
+    }
+    
+    console.log('Environment Info:');
+    console.log('Is Dev:', isDevEnv);
+    console.log('App Path:', process.resourcesPath);
+    console.log('Python Path:', pythonPath);
+    console.log('Working Directory:', process.cwd());
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(pythonPath)) {
+        console.error('Python Path Error:');
+        console.error(`Python interpreter not found at: ${pythonPath}`);
+        
+        // 尝试备用路径
+        const altPath = isDevEnv ? pythonPath : path.join(process.resourcesPath, 'python_env', 'bin', 'python3');
+        if (fs.existsSync(altPath)) {
+            console.log('Found Python at alternate path:', altPath);
+            return altPath;
+        }
+        
+        // 列出资源目录内容以便调试
+        try {
+            console.log('Contents of Resources directory:');
+            const resourcesContents = fs.readdirSync(process.resourcesPath);
+            console.log(resourcesContents);
+            
+            if (!isDevEnv) {
+                // 检查 app.asar.unpacked 目录
+                const unpackedPath = path.join(process.resourcesPath, 'app.asar.unpacked');
+                if (fs.existsSync(unpackedPath)) {
+                    console.log('Contents of app.asar.unpacked directory:');
+                    const unpackedContents = fs.readdirSync(unpackedPath);
+                    console.log(unpackedContents);
+                }
+            }
+        } catch (err) {
+            console.error('Error listing directories:', err);
+        }
+        
+        throw new Error(`Python interpreter not found at: ${pythonPath}`);
+    }
+    
+    return pythonPath;
+}
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
