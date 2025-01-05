@@ -1,15 +1,19 @@
-name: Build Windows
+name: Build App
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
@@ -18,27 +22,58 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18"
+          cache: "npm"
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.10"
+          cache: "pip"
 
-      - name: Install Python dependencies
+      - name: Create Python Environment
         run: |
-          python -m pip install --upgrade pip
+          python -m venv python_env
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ./python_env/Scripts/activate
+          else
+            source python_env/bin/activate
+          fi
           pip install -r requirements.txt
+        shell: bash
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install Dependencies
+        run: npm ci
 
-      - name: Build Windows
-        run: npm run build:win
+      - name: Build App
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            npm run build:win
+          else
+            npm run build:mac
+          fi
+        shell: bash
 
-      - name: Upload Windows Artifact
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: windows-build
-          path: dist/*.exe
+          name: ${{ matrix.os }}-artifacts
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
