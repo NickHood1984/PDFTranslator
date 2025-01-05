@@ -36,8 +36,6 @@ function createWindow() {
     // 当窗口准备好时再显示
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
-        // 打开开发者工具（调试用）
-        mainWindow.webContents.openDevTools();
     });
 
     // 监听窗口关闭事件
