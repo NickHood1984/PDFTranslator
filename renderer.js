@@ -612,7 +612,7 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         const configPath = path.join(userDataPath, 'config.json');
         const outputBasePath = path.join(selectedOutputPath, path.basename(selectedInputPath, '.pdf'));
         
-        // 使用引号包裹所有路径
+        // 修改命令构建方式
         const command = `"${pythonPath}" "${pythonScript}" "${selectedInputPath}" "${outputBasePath}" "${configPath}"`;
         
         console.log('Executing command:', command);
@@ -621,12 +621,14 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         const envVars = {
             ...process.env,
             VIRTUAL_ENV: pythonEnvPath,
-            PATH: `${path.join(pythonEnvPath, 'Scripts')}${path.delimiter}${pythonEnvPath}${path.delimiter}${process.env.PATH}`,
+            PATH: `${pythonEnvPath}\\Scripts;${pythonEnvPath};${process.env.PATH}`,
             PYTHONPATH: pythonEnvPath,
             PYTHONHOME: pythonEnvPath,
             PYTHONIOENCODING: 'utf-8',
-            LANG: 'zh_CN.UTF-8',
-            LC_ALL: 'zh_CN.UTF-8'
+            LANG: 'en_US.UTF-8',
+            LC_ALL: 'en_US.UTF-8',
+            PYTHONDONTWRITEBYTECODE: '1',
+            PYTHONUNBUFFERED: '1'
         };
 
         // 打印详细的环境信息用于调试
@@ -637,13 +639,13 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         console.log('Working Directory:', process.cwd());
 
         // 将执行命令的请求发送到主进程
-        const result = await ipcRenderer.invoke('execute-command', command, { env: envVars });
-        console.log('Command execution result:', result);
-
-        if (result.error) {
-            throw new Error(result.error);
-        }
-
+        const result = await ipcRenderer.invoke('execute-command', command, { 
+            env: envVars,
+            windowsHide: false,
+            shell: true
+        });
+        
+        // 处理主进程返回的结果
         if (result.code === 0) {
             const dualPath = `${outputBasePath}_双语.pdf`;
             const monoPath = `${outputBasePath}_译文.pdf`;
@@ -669,14 +671,21 @@ document.getElementById('convertButton').addEventListener('click', async () => {
                 statusDiv.className = 'bg-green-50 rounded-lg p-4 shadow-sm';
             }
         } else {
-            throw new Error(result.stderr || '转换失败');
+            statusDiv.textContent = '转换失败';
+            statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
         }
+
+        primaryButton.disabled = false;
+        document.getElementById('fileInput').disabled = false;
+        document.getElementById('browseButton').disabled = false;
+        progressContainer.classList.add('hidden');
+
     } catch (error) {
         console.error('Conversion error:', error);
         statusDiv.textContent = `转换出错: ${error.message}`;
         statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
         statusDiv.classList.remove('hidden');
-    } finally {
+        
         primaryButton.disabled = false;
         document.getElementById('fileInput').disabled = false;
         document.getElementById('browseButton').disabled = false;
