@@ -1,18 +1,82 @@
-const { ipcRenderer, shell, app } = require('electron');
+const { ipcRenderer, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 
-const store = new Store({
-    cwd: app.getPath('userData')
-});
-
 let userDataPath = '';
-ipcRenderer.invoke('get-user-data-path').then(path => {
-    userDataPath = path;
-    console.log('User data path:', path);
-    // 初始化配置
-    loadConfig();
+let store = null;
+
+// 初始化
+async function initializeApp() {
+    try {
+        // 从主进程获取用户数据路径
+        userDataPath = await ipcRenderer.invoke('get-user-data-path');
+        console.log('User data path:', userDataPath);
+        
+        // 初始化 Store
+        store = new Store({
+            cwd: userDataPath
+        });
+        
+        // 初始化配置
+        await loadConfig();
+        
+        // 检查模型
+        await checkModel();
+        
+        console.log('应用初始化完成');
+    } catch (error) {
+        console.error('初始化失败:', error);
+        const statusDiv = document.getElementById('status');
+        if (statusDiv) {
+            statusDiv.textContent = `初始化失败: ${error.message}`;
+            statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
+            statusDiv.classList.remove('hidden');
+        }
+    }
+}
+
+// 修改 loadConfig 函数为异步函数
+async function loadConfig() {
+    if (!store) {
+        console.warn('Store not initialized yet');
+        return;
+    }
+    
+    try {
+        const config = store.get('config') || {
+            threadCount: 4,
+            service: 'google',
+            outputFormat: 'dual'
+        };
+        
+        const threadCount = document.getElementById('threadCount');
+        const threadValue = document.getElementById('threadValue');
+        const service = document.getElementById('service');
+        const outputFormat = document.getElementById('outputFormat');
+        
+        if (threadCount) threadCount.value = config.threadCount;
+        if (threadValue) threadValue.textContent = config.threadCount;
+        if (service) service.value = config.service;
+        if (outputFormat) outputFormat.value = config.outputFormat;
+        
+        return config;
+    } catch (error) {
+        console.error('Error loading config:', error);
+        return {
+            threadCount: 4,
+            service: 'google',
+            outputFormat: 'dual'
+        };
+    }
+}
+
+// 在 DOMContentLoaded 时初始化
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing app...');
+    initializeApp().catch(error => {
+        console.error('App initialization failed:', error);
+    });
 });
 
 // 修改这部分，直接使用 path 模块
@@ -151,9 +215,38 @@ function saveConfig() {
         };
         
         store.set('config', config);
+        
+        // 显示保存成功提示
+        const settingsModal = document.getElementById('settingsModal');
+        const statusDiv = document.getElementById('status');
+        
+        // 关闭设置窗口
+        settingsModal.classList.add('hidden');
+        
+        // 显示成功提示
+        statusDiv.textContent = '设置已保存';
+        statusDiv.className = 'bg-green-100 text-success rounded-md p-4 transition-opacity duration-500';
+        statusDiv.classList.remove('hidden');
+        
+        // 3秒后淡出提示
+        setTimeout(() => {
+            statusDiv.classList.add('opacity-0');
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+                statusDiv.classList.remove('opacity-0');
+            }, 500);
+        }, 3000);
+        
         return true;
     } catch (error) {
         console.error('Error saving config:', error);
+        
+        // 显示错误提示
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = `保存设置失败: ${error.message}`;
+        statusDiv.className = 'bg-red-100 text-error rounded-md p-4';
+        statusDiv.classList.remove('hidden');
+        
         return false;
     }
 }
@@ -630,16 +723,7 @@ document.getElementById('closeSettings').addEventListener('click', () => {
 });
 
 document.getElementById('saveSettings').addEventListener('click', () => {
-    if (saveConfig()) {
-        document.getElementById('settingsModal').classList.add('hidden');
-        const statusDiv = document.getElementById('status');
-        statusDiv.textContent = '设置已保存';
-        statusDiv.className = 'bg-green-100 text-success rounded-md p-4';
-        statusDiv.classList.remove('hidden');
-        setTimeout(() => {
-            statusDiv.classList.add('hidden');
-        }, 2000);
-    }
+    saveConfig();
 });
 
 // 点击模态框外部关闭

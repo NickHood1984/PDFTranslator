@@ -33,6 +33,8 @@
       "!**/*.so",
       "!**/*.dylib",
       "!**/.DS_Store",
+      "!**/*.app",
+      "!**/*.framework",
       "styles/**/*"
     ],
     "extraResources": [
@@ -108,22 +110,12 @@
             "!**/*.pyc",
             "!**/*.pyo",
             "!**/*.pyd",
-            "!**/.DS_Store"
+            "!**/.DS_Store",
+            "!**/*.dylib",
+            "!**/*.so",
+            "!**/*.app",
+            "!**/*.framework"
           ]
-        },
-        {
-          "from": "python_env/Scripts",
-          "to": "app.asar.unpacked/python_env/Scripts",
-          "filter": ["**/*"]
-        },
-        {
-          "from": "python_env/python.exe",
-          "to": "app.asar.unpacked/python_env/python.exe"
-        },
-        {
-          "from": "python_env/Lib",
-          "to": "app.asar.unpacked/python_env/Lib",
-          "filter": ["**/*"]
         },
         {
           "from": "models",
