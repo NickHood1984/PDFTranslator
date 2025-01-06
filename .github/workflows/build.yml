@@ -32,20 +32,40 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+          architecture: "x64"
+
+      - name: Debug Python Info
+        run: |
+          which python3
+          python3 --version
+          python3 -c "import sys; print(sys.executable)"
+          echo "Current directory: $PWD"
+        shell: bash
 
       - name: Create Python Environment
         run: |
-          python -m venv python_env
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            python -m venv python_env
             python_env/Scripts/python -m pip install --upgrade pip
             python_env/Scripts/pip install wheel setuptools
             python_env/Scripts/pip install -r requirements.txt
           else
+            python3 -m venv python_env
             source python_env/bin/activate
-            pip install --upgrade pip
-            pip install wheel setuptools
-            pip install -r requirements.txt
+            python3 -m pip install --upgrade pip
+            python3 -m pip install wheel setuptools
+            python3 -m pip install -r requirements.txt
+          fi
+        shell: bash
+
+      - name: Verify Python Environment
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            python_env/Scripts/python --version
+            python_env/Scripts/pip list
+          else
+            python_env/bin/python3 --version
+            python_env/bin/pip3 list
           fi
         shell: bash
 
