@@ -55,6 +55,14 @@ jobs:
           python_env\Scripts\pip list
         shell: cmd
 
+      - name: Check Python Environment Size
+        run: |
+          echo "Python environment size:"
+          dir /s python_env
+          echo "Site packages:"
+          dir /s python_env\Lib\site-packages
+        shell: cmd
+
       - name: Install Dependencies
         run: npm ci
 
@@ -68,8 +76,16 @@ jobs:
           echo "Current directory:"
           dir
           echo "Python environment:"
-          dir python_env
+          dir /s python_env
           npm run build:win
+        shell: cmd
+
+      - name: Check Build Output
+        run: |
+          echo "Build output size:"
+          dir /s dist
+          echo "Checking app.asar.unpacked:"
+          dir /s "dist\win-unpacked\resources\app.asar.unpacked"
         shell: cmd
 
       - name: Upload Artifacts

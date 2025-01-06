@@ -49,7 +49,8 @@
         "from": ".",
         "to": "app.asar.unpacked",
         "filter": [
-          "*.py"
+          "*.py",
+          "requirements.txt"
         ]
       }
     ],
@@ -103,22 +104,24 @@
           "filter": [
             "python.exe",
             "pythonw.exe",
+            "*.dll",
             "Scripts/**/*",
             "Lib/**/*",
             "DLLs/**/*",
             "!**/__pycache__/**",
             "!**/*.pyc",
-            "!**/*.pyo",
-            "!**/*.pyd",
-            "!**/.DS_Store",
-            "!**/*.dylib",
-            "!**/*.so",
-            "!**/*.app",
-            "!**/*.framework",
-            "!**/*.h",
-            "!**/*.a",
-            "!**/*.lib"
+            "!**/*.pyo"
           ]
+        },
+        {
+          "from": "python_env/Lib/site-packages",
+          "to": "app.asar.unpacked/python_env/Lib/site-packages",
+          "filter": ["**/*"]
+        },
+        {
+          "from": "python_env/Scripts",
+          "to": "app.asar.unpacked/python_env/Scripts",
+          "filter": ["**/*"]
         },
         {
           "from": "models",
@@ -134,7 +137,10 @@
       "createStartMenuShortcut": true,
       "allowElevation": true,
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     },
     "portable": {
       "artifactName": "${productName}-Windows-Portable-${version}-${arch}.${ext}"
