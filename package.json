@@ -51,7 +51,8 @@
         "to": "app.asar.unpacked",
         "filter": [
           "*.py",
-          "requirements.txt"
+          "requirements.txt",
+          "download_model.py"
         ]
       }
     ],
@@ -76,30 +77,8 @@
             "pythonw.exe",
             "*.dll",
             "DLLs/**/*",
-            "Lib/site-packages/**/*",
-            "Lib/encodings/**/*",
-            "Lib/logging/**/*",
-            "Lib/json/**/*",
-            "Lib/xml/**/*",
-            "Lib/http/**/*",
-            "Lib/email/**/*",
-            "Lib/html/**/*",
-            "Lib/urllib/**/*",
-            "Lib/sqlite3/**/*",
-            "Lib/lib2to3/**/*",
-            "!**/__pycache__/**",
-            "!**/*.pyc",
-            "!**/*.pyo"
-          ]
-        },
-        {
-          "from": "python_env/Scripts",
-          "to": "app.asar.unpacked/python_env/Scripts",
-          "filter": [
-            "*.exe",
-            "*.dll",
-            "*.bat",
-            "*.ps1",
+            "Lib/**/*",
+            "Scripts/**/*",
             "!**/__pycache__/**",
             "!**/*.pyc",
             "!**/*.pyo"

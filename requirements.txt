@@ -6,3 +6,6 @@ opencv-python
 transformers
 pdf2zh
 PyPDF2
+huggingface_hub
+tqdm
+requests
