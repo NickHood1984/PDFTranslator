@@ -77,6 +77,8 @@ jobs:
           curl -L -o nsis.exe https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08-setup.exe/download
           .\nsis.exe /S
           echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+          dir "C:\Program Files (x86)\NSIS"
+          makensis /VERSION
         shell: powershell
 
       - name: Build App
@@ -94,7 +96,11 @@ jobs:
           taskkill /F /IM python.exe /T
           taskkill /F /IM pythonw.exe /T
           timeout /t 5
+          echo "Starting build..."
           npm run build:win
+          echo "Build completed"
+          echo "Checking dist directory:"
+          dir /s dist
         shell: cmd
         continue-on-error: true
 

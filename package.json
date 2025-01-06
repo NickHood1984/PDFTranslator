@@ -60,6 +60,10 @@
         {
           "target": "nsis",
           "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
         }
       ],
       "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
@@ -113,7 +117,10 @@
       "allowElevation": true,
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": true,
-      "include": "build/installer.nsh"
+      "include": "build/installer.nsh",
+      "installerLanguages": ["zh-CN"],
+      "language": "2052",
+      "packElevateHelper": true
     },
     "portable": {
       "artifactName": "${productName}-Windows-Portable-${version}-${arch}.${ext}"
