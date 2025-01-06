@@ -30,12 +30,29 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: "x64"
 
+      - name: Debug Python Info
+        run: |
+          python --version
+          python -c "import sys; print('Python executable:', sys.executable)"
+          python -c "import sys; print('Python path:', sys.path)"
+          dir python_env
+        shell: cmd
+
       - name: Create Python Environment
         run: |
           python -m venv python_env
           python_env\Scripts\python -m pip install --upgrade pip
           python_env\Scripts\pip install wheel setuptools
           python_env\Scripts\pip install -r requirements.txt
+        shell: cmd
+
+      - name: Verify Python Environment
+        run: |
+          dir python_env
+          dir python_env\Scripts
+          dir python_env\Lib
+          python_env\Scripts\python --version
+          python_env\Scripts\pip list
         shell: cmd
 
       - name: Install Dependencies
@@ -46,8 +63,14 @@ jobs:
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-          DEBUG: electron-builder
-        run: npm run build:win
+          DEBUG: electron-builder,electron-builder:*
+        run: |
+          echo "Current directory:"
+          dir
+          echo "Python environment:"
+          dir python_env
+          npm run build:win
+        shell: cmd
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3

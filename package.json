@@ -101,7 +101,11 @@
           "from": "python_env",
           "to": "app.asar.unpacked/python_env",
           "filter": [
-            "**/*",
+            "python.exe",
+            "pythonw.exe",
+            "Scripts/**/*",
+            "Lib/**/*",
+            "DLLs/**/*",
             "!**/__pycache__/**",
             "!**/*.pyc",
             "!**/*.pyo",
@@ -115,15 +119,6 @@
             "!**/*.a",
             "!**/*.lib"
           ]
-        },
-        {
-          "from": "python_env/Scripts",
-          "to": "app.asar.unpacked/python_env/Scripts",
-          "filter": ["**/*"]
-        },
-        {
-          "from": "python_env/python.exe",
-          "to": "app.asar.unpacked/python_env/python.exe"
         },
         {
           "from": "models",
