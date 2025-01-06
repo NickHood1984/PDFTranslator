@@ -47,6 +47,9 @@ def download_model():
                     old_path = os.path.join(model_dir, file)
                     new_path = os.path.join(model_dir, 'model.onnx')
                     if old_path != new_path:
+                        # 如果目标文件已存在，先删除它
+                        if os.path.exists(new_path):
+                            os.remove(new_path)
                         os.rename(old_path, new_path)
                     break
             
