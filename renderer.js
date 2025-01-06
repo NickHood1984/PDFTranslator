@@ -5,13 +5,16 @@ const Store = require('electron-store');
 
 let userDataPath = '';
 let store = null;
+let resourcesPath = '';
 
-// 初始化
+// 初始化时获取资源路径
 async function initializeApp() {
     try {
-        // 从主进程获取用户数据路径
+        // 从主进程获取用户数据路径和资源路径
         userDataPath = await ipcRenderer.invoke('get-user-data-path');
+        resourcesPath = await ipcRenderer.invoke('get-resources-path');
         console.log('User data path:', userDataPath);
+        console.log('Resources path:', resourcesPath);
         
         // 初始化 Store
         store = new Store({
@@ -781,15 +784,16 @@ function getPythonEnvPath() {
 }
 
 function getPythonPath() {
-    const appPath = app.getAppPath();
-    const resourcesPath = path.dirname(appPath);
-    const pythonEnvPath = path.join(resourcesPath, 'python_env');
+    if (!resourcesPath) {
+        throw new Error('Resources path not initialized');
+    }
+    
+    const pythonEnvPath = path.join(resourcesPath, 'app.asar.unpacked', 'python_env');
     
     // 检查多个可能的 Python 路径
     const possiblePaths = [
         path.join(pythonEnvPath, 'python.exe'),
         path.join(pythonEnvPath, 'Scripts', 'python.exe'),
-        // 添加更多可能的路径
         path.join(resourcesPath, 'app.asar.unpacked', 'python_env', 'python.exe'),
         path.join(resourcesPath, 'app.asar.unpacked', 'python_env', 'Scripts', 'python.exe')
     ];

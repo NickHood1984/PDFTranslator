@@ -135,6 +135,10 @@ ipcMain.handle('get-user-data-path', () => {
     return app.getPath('userData');
 });
 
+ipcMain.handle('get-resources-path', () => {
+    return process.resourcesPath;
+});
+
 // 添加错误处理
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
