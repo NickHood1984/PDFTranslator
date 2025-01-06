@@ -42,7 +42,8 @@
         "from": "models",
         "to": "app.asar.unpacked/models",
         "filter": [
-          "**/*"
+          "**/*",
+          "!.gitkeep"
         ]
       },
       {
@@ -105,28 +106,35 @@
             "python.exe",
             "pythonw.exe",
             "*.dll",
-            "Scripts/**/*",
-            "Lib/**/*",
             "DLLs/**/*",
+            "Lib/site-packages/**/*",
+            "Lib/encodings/**/*",
+            "Lib/logging/**/*",
+            "Lib/json/**/*",
+            "Lib/xml/**/*",
+            "Lib/http/**/*",
+            "Lib/email/**/*",
+            "Lib/html/**/*",
+            "Lib/urllib/**/*",
+            "Lib/sqlite3/**/*",
+            "Lib/lib2to3/**/*",
             "!**/__pycache__/**",
             "!**/*.pyc",
             "!**/*.pyo"
           ]
         },
         {
-          "from": "python_env/Lib/site-packages",
-          "to": "app.asar.unpacked/python_env/Lib/site-packages",
-          "filter": ["**/*"]
-        },
-        {
           "from": "python_env/Scripts",
           "to": "app.asar.unpacked/python_env/Scripts",
-          "filter": ["**/*"]
-        },
-        {
-          "from": "models",
-          "to": "app.asar.unpacked/models",
-          "filter": ["**/*"]
+          "filter": [
+            "*.exe",
+            "*.dll",
+            "*.bat",
+            "*.ps1",
+            "!**/__pycache__/**",
+            "!**/*.pyc",
+            "!**/*.pyo"
+          ]
         }
       ]
     },

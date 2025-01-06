@@ -30,12 +30,17 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: "x64"
 
-      - name: Debug Python Info
+      - name: Download Model
         run: |
-          python --version
-          python -c "import sys; print('Python executable:', sys.executable)"
-          python -c "import sys; print('Python path:', sys.path)"
-          dir python_env
+          python download_model.py
+        shell: cmd
+
+      - name: Check Model File
+        run: |
+          echo "Model file size:"
+          dir /s models
+          echo "Model file details:"
+          dir /s models\DocLayout-YOLO-DocStructBench-onnx
         shell: cmd
 
       - name: Create Python Environment
@@ -44,16 +49,19 @@ jobs:
           python_env\Scripts\python -m pip install --upgrade pip
           python_env\Scripts\pip install wheel setuptools
           python_env\Scripts\pip install -r requirements.txt
+          timeout /t 5
         shell: cmd
 
-      - name: Verify Python Environment
+      - name: Clean Python Environment
         run: |
-          dir python_env
-          dir python_env\Scripts
-          dir python_env\Lib
-          python_env\Scripts\python --version
-          python_env\Scripts\pip list
+          echo "Cleaning Python environment..."
+          del /f /s /q python_env\Scripts\*.pyc
+          del /f /s /q python_env\Scripts\__pycache__
+          del /f /s /q python_env\Lib\site-packages\*.pyc
+          del /f /s /q python_env\Lib\site-packages\__pycache__
+          timeout /t 5
         shell: cmd
+        continue-on-error: true
 
       - name: Check Python Environment Size
         run: |
@@ -61,6 +69,7 @@ jobs:
           dir /s python_env
           echo "Site packages:"
           dir /s python_env\Lib\site-packages
+          timeout /t 5
         shell: cmd
 
       - name: Install Dependencies
@@ -75,10 +84,15 @@ jobs:
         run: |
           echo "Current directory:"
           dir
-          echo "Python environment:"
-          dir /s python_env
+          echo "Model files before build:"
+          dir /s models
+          timeout /t 5
+          taskkill /F /IM python.exe /T
+          taskkill /F /IM pythonw.exe /T
+          timeout /t 5
           npm run build:win
         shell: cmd
+        continue-on-error: true
 
       - name: Check Build Output
         run: |
@@ -86,6 +100,8 @@ jobs:
           dir /s dist
           echo "Checking app.asar.unpacked:"
           dir /s "dist\win-unpacked\resources\app.asar.unpacked"
+          echo "Checking model files in build:"
+          dir /s "dist\win-unpacked\resources\app.asar.unpacked\models"
         shell: cmd
 
       - name: Upload Artifacts
