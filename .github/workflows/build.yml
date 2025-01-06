@@ -67,25 +67,15 @@ jobs:
           deactivate
         shell: cmd
 
-      - name: Clean Python Environment
-        run: |
-          echo "Cleaning Python environment..."
-          del /f /s /q python_env\Scripts\*.pyc
-          del /f /s /q python_env\Scripts\__pycache__
-          del /f /s /q python_env\Lib\site-packages\*.pyc
-          del /f /s /q python_env\Lib\site-packages\__pycache__
-          timeout /t 5
-        shell: cmd
-        continue-on-error: true
-
       - name: Install Dependencies
         run: npm ci
 
       - name: Download NSIS
         run: |
-          curl -L -o nsis.exe https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08-setup.exe/download
-          .\nsis.exe /S
-          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+          $url = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08-setup.exe/download"
+          Invoke-WebRequest -Uri $url -OutFile nsis.exe
+          Start-Process -FilePath ".\nsis.exe" -ArgumentList "/S" -Wait
+          $env:Path += ";C:\Program Files (x86)\NSIS"
           dir "C:\Program Files (x86)\NSIS"
           makensis /VERSION
         shell: powershell
