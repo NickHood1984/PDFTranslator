@@ -92,10 +92,6 @@
         {
           "target": "nsis",
           "arch": ["x64"]
-        },
-        {
-          "target": "portable",
-          "arch": ["x64"]
         }
       ],
       "icon": "build/icon.ico",
@@ -114,8 +110,20 @@
             "!**/*.dylib",
             "!**/*.so",
             "!**/*.app",
-            "!**/*.framework"
+            "!**/*.framework",
+            "!**/*.h",
+            "!**/*.a",
+            "!**/*.lib"
           ]
+        },
+        {
+          "from": "python_env/Scripts",
+          "to": "app.asar.unpacked/python_env/Scripts",
+          "filter": ["**/*"]
+        },
+        {
+          "from": "python_env/python.exe",
+          "to": "app.asar.unpacked/python_env/python.exe"
         },
         {
           "from": "models",
