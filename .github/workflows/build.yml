@@ -60,10 +60,11 @@ jobs:
       - name: Create Python Environment
         run: |
           python -m venv python_env
-          python_env\Scripts\python -m pip install --upgrade pip
-          python_env\Scripts\pip install wheel setuptools
-          python_env\Scripts\pip install -r requirements.txt
-          timeout /t 5
+          call python_env\Scripts\activate.bat
+          python -m pip install --upgrade pip
+          pip install wheel setuptools
+          pip install -r requirements.txt
+          deactivate
         shell: cmd
 
       - name: Clean Python Environment
