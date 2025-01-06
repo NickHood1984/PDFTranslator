@@ -72,12 +72,25 @@ jobs:
 
       - name: Download NSIS
         run: |
-          $url = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08-setup.exe/download"
-          Invoke-WebRequest -Uri $url -OutFile nsis.exe
-          Start-Process -FilePath ".\nsis.exe" -ArgumentList "/S" -Wait
+          $ProgressPreference = 'SilentlyContinue'
+          $nsisUrl = "https://nchc.dl.sourceforge.net/project/nsis/NSIS%203/3.08/nsis-3.08-setup.exe"
+          Write-Host "Downloading NSIS..."
+          Invoke-WebRequest -Uri $nsisUrl -OutFile "nsis-setup.exe"
+          Write-Host "Installing NSIS..."
+          $process = Start-Process -FilePath ".\nsis-setup.exe" -ArgumentList "/S" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Write-Error "NSIS installation failed with exit code $($process.ExitCode)"
+            exit 1
+          }
+          Write-Host "Adding NSIS to PATH..."
           $env:Path += ";C:\Program Files (x86)\NSIS"
-          dir "C:\Program Files (x86)\NSIS"
-          makensis /VERSION
+          Write-Host "Verifying NSIS installation..."
+          if (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe") {
+            & "C:\Program Files (x86)\NSIS\makensis.exe" /VERSION
+          } else {
+            Write-Error "NSIS installation not found"
+            exit 1
+          }
         shell: powershell
 
       - name: Build App
