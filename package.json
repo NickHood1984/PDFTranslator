@@ -55,40 +55,6 @@
         ]
       }
     ],
-    "mac": {
-      "identity": null,
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false,
-      "category": "public.app-category.utilities",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "build/icon.icns",
-      "extendInfo": {
-        "NSDocumentsFolderUsageDescription": "请允许访问文档文件夹",
-        "NSDownloadsFolderUsageDescription": "请允许访问下载文件夹"
-      },
-      "extraResources": [
-        {
-          "from": "python_env/lib/python3.10/encodings",
-          "to": "app.asar.unpacked/python_env/Lib/encodings"
-        },
-        {
-          "from": "python_env/lib/python3.10/lib-dynload",
-          "to": "app.asar.unpacked/python_env/Lib/lib-dynload"
-        },
-        {
-          "from": "python_env/lib/python3.10/site-packages",
-          "to": "app.asar.unpacked/python_env/Lib/site-packages"
-        }
-      ]
-    },
     "win": {
       "target": [
         {
@@ -96,7 +62,6 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico",
       "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
       "extraResources": [
         {
@@ -145,10 +110,7 @@
       "createStartMenuShortcut": true,
       "allowElevation": true,
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico"
+      "deleteAppDataOnUninstall": true
     },
     "portable": {
       "artifactName": "${productName}-Windows-Portable-${version}-${arch}.${ext}"
