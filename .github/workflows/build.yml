@@ -69,17 +69,15 @@ jobs:
         shell: cmd
         continue-on-error: true
 
-      - name: Check Python Environment Size
-        run: |
-          echo "Python environment size:"
-          dir /s python_env
-          echo "Site packages:"
-          dir /s python_env\Lib\site-packages
-          timeout /t 5
-        shell: cmd
-
       - name: Install Dependencies
         run: npm ci
+
+      - name: Download NSIS
+        run: |
+          curl -L -o nsis.exe https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08-setup.exe/download
+          .\nsis.exe /S
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+        shell: powershell
 
       - name: Build App
         env:
