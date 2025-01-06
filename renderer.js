@@ -38,36 +38,23 @@ async function initializeApp() {
 
 // 修改 loadConfig 函数为异步函数
 async function loadConfig() {
-    if (!store) {
-        console.warn('Store not initialized yet');
-        return;
-    }
-    
     try {
-        const config = store.get('config') || {
-            threadCount: 4,
-            service: 'google',
-            outputFormat: 'dual'
+        const config = store.get('config') || {};
+        const elements = {
+            'source-lang': config.sourceLang || 'auto',
+            'target-lang': config.targetLang || 'zh',
+            'api-key': config.apiKey || '',
+            'model-type': config.modelType || 'local'
         };
         
-        const threadCount = document.getElementById('threadCount');
-        const threadValue = document.getElementById('threadValue');
-        const service = document.getElementById('service');
-        const outputFormat = document.getElementById('outputFormat');
-        
-        if (threadCount) threadCount.value = config.threadCount;
-        if (threadValue) threadValue.textContent = config.threadCount;
-        if (service) service.value = config.service;
-        if (outputFormat) outputFormat.value = config.outputFormat;
-        
-        return config;
+        for (const [id, value] of Object.entries(elements)) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = value;
+            }
+        }
     } catch (error) {
         console.error('Error loading config:', error);
-        return {
-            threadCount: 4,
-            service: 'google',
-            outputFormat: 'dual'
-        };
     }
 }
 
@@ -183,25 +170,22 @@ function showStatus(type, message) {
 // 修改加载配置函数
 function loadConfig() {
     try {
-        const config = store.get('config') || {
-            threadCount: 4,
-            service: 'google',
-            outputFormat: 'dual'
+        const config = store.get('config') || {};
+        const elements = {
+            'source-lang': config.sourceLang || 'auto',
+            'target-lang': config.targetLang || 'zh',
+            'api-key': config.apiKey || '',
+            'model-type': config.modelType || 'local'
         };
         
-        document.getElementById('threadCount').value = config.threadCount;
-        document.getElementById('threadValue').textContent = config.threadCount;
-        document.getElementById('service').value = config.service;
-        document.getElementById('outputFormat').value = config.outputFormat;
-        
-        return config;
+        for (const [id, value] of Object.entries(elements)) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = value;
+            }
+        }
     } catch (error) {
         console.error('Error loading config:', error);
-        return {
-            threadCount: 4,
-            service: 'google',
-            outputFormat: 'dual'
-        };
     }
 }
 
@@ -797,42 +781,30 @@ function getPythonEnvPath() {
 }
 
 function getPythonPath() {
-    const isWindows = process.platform === 'win32';
-    const pythonEnvPath = getPythonEnvPath();
+    const appPath = app.getAppPath();
+    const resourcesPath = path.dirname(appPath);
+    const pythonEnvPath = path.join(resourcesPath, 'python_env');
     
-    let pythonExecutable;
-    if (isWindows) {
-        // Windows 环境下的路径检查顺序
-        const possiblePaths = [
-            path.join(pythonEnvPath, 'python.exe'),           // 根目录
-            path.join(pythonEnvPath, 'Scripts', 'python.exe') // Scripts 目录
-        ];
-
-        // 使用 Windows 风格的路径分隔符
-        const normalizedPaths = possiblePaths.map(p => p.replace(/\//g, '\\'));
-        console.log('检查 Python 路径:', normalizedPaths);
-
-        for (const testPath of normalizedPaths) {
-            console.log('测试 Python 路径:', testPath);
-            if (fs.existsSync(testPath)) {
-                pythonExecutable = testPath;
-                console.log('找到 Python 路径:', pythonExecutable);
-                break;
-            }
-        }
-
-        if (!pythonExecutable) {
-            throw new Error(`未找到 Python 解释器，已检查以下路径：\n${normalizedPaths.join('\n')}`);
-        }
-    } else {
-        // macOS/Linux 环境
-        pythonExecutable = path.join(pythonEnvPath, 'bin', 'python3');
-        if (!fs.existsSync(pythonExecutable)) {
-            throw new Error(`未找到 Python 解释器: ${pythonExecutable}`);
+    // 检查多个可能的 Python 路径
+    const possiblePaths = [
+        path.join(pythonEnvPath, 'python.exe'),
+        path.join(pythonEnvPath, 'Scripts', 'python.exe'),
+        // 添加更多可能的路径
+        path.join(resourcesPath, 'app.asar.unpacked', 'python_env', 'python.exe'),
+        path.join(resourcesPath, 'app.asar.unpacked', 'python_env', 'Scripts', 'python.exe')
+    ];
+    
+    console.log('检查 Python 路径:', possiblePaths);
+    
+    for (const pythonPath of possiblePaths) {
+        console.log('测试 Python 路径:', pythonPath);
+        if (fs.existsSync(pythonPath)) {
+            console.log('找到 Python 路径:', pythonPath);
+            return pythonPath;
         }
     }
-
-    return pythonExecutable;
+    
+    throw new Error('未找到 Python 解释器，已检查以下路径：\n' + possiblePaths.join('\n'));
 }
 
 // 添加打开PDF文件的函数

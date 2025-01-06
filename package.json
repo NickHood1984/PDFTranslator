@@ -54,6 +54,16 @@
           "requirements.txt",
           "download_model.py"
         ]
+      },
+      {
+        "from": "python_env",
+        "to": "app.asar.unpacked/python_env",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.pyo"
+        ]
       }
     ],
     "win": {
