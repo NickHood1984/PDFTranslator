@@ -107,22 +107,59 @@ ipcMain.handle('execute-command', async (event, command, options) => {
             return;
         }
 
-        const childProcess = exec(command, {
+        // 检查是否在虚拟机中运行
+        const isInVM = process.env.PATH.includes('Parallels') || 
+                      process.env.PATH.includes('VMware') || 
+                      process.env.PATH.includes('VirtualBox');
+
+        // 获取系统架构和其他信息
+        const arch = process.arch;
+        const platform = process.platform;
+        const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+        
+        console.log('System info:', {
+            isInVM,
+            architecture: arch,
+            platform: platform,
+            workingDir,
+            systemRoot,
+            PATH: process.env.PATH
+        });
+
+        // 调整命令执行选项
+        const execOptions = {
             ...options,
             windowsHide: false,
             shell: true,
             maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-            cwd: workingDir // 设置工作目录
-        }, (error, stdout, stderr) => {
+            cwd: workingDir, // 设置工作目录
+            windowsVerbatimArguments: true, // 在Windows上使用原始参数
+            env: {
+                ...options.env,
+                ELECTRON_RUN_AS_NODE: '1', // 确保以Node模式运行
+                SystemRoot: systemRoot,
+                windir: systemRoot,
+                TEMP: process.env.TEMP || path.join(systemRoot, 'Temp'),
+                TMP: process.env.TMP || path.join(systemRoot, 'Temp')
+            }
+        };
+
+        const childProcess = exec(command, execOptions, (error, stdout, stderr) => {
             if (error) {
                 console.error('Command execution error:', error);
                 console.error('Command:', command);
-                console.error('Options:', options);
+                console.error('Options:', execOptions);
                 console.error('Stderr:', stderr);
                 
                 // 检查是否是权限问题
                 if (error.code === 'EACCES') {
                     resolve({ code: error.code, error: '权限不足，请以管理员身份运行程序' });
+                } else if (error.code === 'ENOENT') {
+                    resolve({ code: error.code, error: '找不到指定的程序或命令' });
+                } else if (error.code === 'EPERM') {
+                    resolve({ code: error.code, error: '操作不被允许，可能需要更高权限' });
+                } else if (error.code === 'UNKNOWN') {
+                    resolve({ code: error.code, error: '未知错误，请检查 Python 环境是否正确安装' });
                 } else {
                     resolve({ code: error.code, error: `执行错误: ${error.message}\n${stderr}` });
                 }
@@ -159,6 +196,14 @@ ipcMain.handle('execute-command', async (event, command, options) => {
 
         childProcess.on('error', (error) => {
             console.error('Child process error:', error);
+            console.error('System info:', {
+                isInVM,
+                architecture: arch,
+                platform: platform,
+                workingDir,
+                systemRoot,
+                PATH: process.env.PATH
+            });
             mainWindow.webContents.send('command-error', `进程错误: ${error.message}`);
             resolve({ code: 1, error: `进程错误: ${error.message}` });
         });

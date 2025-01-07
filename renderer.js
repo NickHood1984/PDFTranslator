@@ -566,22 +566,39 @@ async function executeCommand(command, options) {
         const pythonLibPath = path.join(pythonEnvPath, 'Lib');
         const pythonSitePackages = path.join(pythonLibPath, 'site-packages');
 
-        // 构建完整的 PYTHONPATH
+        // 检测是否在虚拟机中运行
+        const isInVM = process.env.PATH.includes('Parallels') || 
+                      process.env.PATH.includes('VMware') || 
+                      process.env.PATH.includes('VirtualBox');
+        
+        console.log('Running in VM:', isInVM);
+
+        // 检测系统架构
+        const arch = process.arch;
+        console.log('System architecture:', arch);
+
+        // 构建完整的 PYTHONPATH，确保使用正确的路径分隔符
         const pythonPaths = [
             pythonEnvPath,
             pythonLibPath,
             pythonSitePackages,
             pythonDLLsPath,
+            path.join(pythonEnvPath, 'Library', 'bin'),  // 添加额外的库路径
             process.cwd()
         ].join(path.delimiter);
 
-        // 构建完整的 PATH
+        // 构建完整的 PATH，确保包含所有必要的目录
         const pathEnv = [
             pythonScriptsPath,
             pythonEnvPath,
+            pythonDLLsPath,
+            path.join(pythonEnvPath, 'Library', 'bin'),
+            process.env.SystemRoot,
+            path.join(process.env.SystemRoot, 'System32'),
             process.env.PATH
         ].filter(Boolean).join(path.delimiter);
 
+        // 根据运行环境调整环境变量
         const envVars = {
             ...process.env,
             PYTHONHOME: pythonEnvPath,
@@ -592,21 +609,44 @@ async function executeCommand(command, options) {
             PYTHONLEGACYWINDOWSFSENCODING: 'utf-8',
             PYTHONLEGACYWINDOWSSTDIO: '1',
             PYTHONDONTWRITEBYTECODE: '1',
-            PYTHONUNBUFFERED: '1'
+            PYTHONUNBUFFERED: '1',
+            // 添加虚拟机相关的环境变量
+            PYTHONNOUSERSITE: '1',  // 禁用用户site-packages
+            PYTHONEXECUTABLE: pythonPath,
+            PYTHONWARNDEFAULTENCODING: '1',
+            SystemRoot: process.env.SystemRoot || 'C:\\Windows',
+            windir: process.env.windir || 'C:\\Windows'
         };
+
+        // 如果在虚拟机中运行，添加额外的配置
+        if (isInVM) {
+            envVars.PYTHONDEVMODE = '1';  // 启用开发者模式
+            envVars.PYTHONUTF8 = '1';     // 强制使用UTF-8
+            envVars.PYTHONIOENCODING = 'utf-8:surrogateescape';  // 使用更宽松的编码处理
+            envVars.PYTHONMALLOC = 'debug';  // 使用调试内存分配器
+            envVars.PYTHONFAULTHANDLER = '1';  // 启用故障处理器
+        }
 
         console.log('Environment variables:', {
             PYTHONHOME: envVars.PYTHONHOME,
             PYTHONPATH: envVars.PYTHONPATH,
-            PATH: envVars.PATH
+            PATH: envVars.PATH,
+            Architecture: arch,
+            IsVM: isInVM,
+            SystemRoot: envVars.SystemRoot
         });
 
-        return await ipcRenderer.invoke('execute-command', command, {
+        // 使用新的执行选项
+        const execOptions = {
             ...options,
             env: envVars,
             windowsHide: false,
-            shell: true
-        });
+            shell: true,
+            windowsVerbatimArguments: true,  // 在Windows上使用原始参数
+            maxBuffer: 1024 * 1024 * 10  // 10MB buffer
+        };
+
+        return await ipcRenderer.invoke('execute-command', command, execOptions);
     } catch (error) {
         console.error('Command execution error:', error);
         throw error;
