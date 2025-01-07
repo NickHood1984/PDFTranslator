@@ -107,26 +107,32 @@ ipcMain.handle('execute-command', async (event, command, options) => {
             return;
         }
 
-        // 检查是否在虚拟机中运行
-        const isInVM = process.env.PATH.includes('Parallels') || 
-                      process.env.PATH.includes('VMware') || 
-                      process.env.PATH.includes('VirtualBox');
+        // 检查 Python 命令
+        const pythonPath = command.split('"')[1];
+        if (!fs.existsSync(pythonPath)) {
+            console.error('Python executable not found:', pythonPath);
+            resolve({ code: 1, error: `Python 解释器未找到: ${pythonPath}` });
+            return;
+        }
 
-        // 获取系统架构和其他信息
-        const arch = process.arch;
-        const isARM = arch === 'arm64';
-        const platform = process.platform;
-        const systemRoot = process.env.SystemRoot || 'C:\\Windows';
-        
-        console.log('System info:', {
-            isInVM,
-            isARM,
-            architecture: arch,
-            platform: platform,
-            workingDir,
-            systemRoot,
-            PATH: process.env.PATH
-        });
+        // 检查 Python 脚本
+        const pythonScript = command.split('"')[3];
+        if (!fs.existsSync(pythonScript)) {
+            console.error('Python script not found:', pythonScript);
+            resolve({ code: 1, error: `Python 脚本未找到: ${pythonScript}` });
+            return;
+        }
+
+        // 验证 Python 环境
+        try {
+            const { execSync } = require('child_process');
+            const pythonVersion = execSync(`"${pythonPath}" --version`, { encoding: 'utf8' });
+            console.log('Python version:', pythonVersion.trim());
+        } catch (error) {
+            console.error('Python version check failed:', error);
+            resolve({ code: 1, error: `Python 环境验证失败: ${error.message}` });
+            return;
+        }
 
         // 调整命令执行选项
         const execOptions = {
@@ -139,10 +145,10 @@ ipcMain.handle('execute-command', async (event, command, options) => {
             env: {
                 ...options.env,
                 ELECTRON_RUN_AS_NODE: '1',
-                SystemRoot: systemRoot,
-                windir: systemRoot,
-                TEMP: process.env.TEMP || path.join(systemRoot, 'Temp'),
-                TMP: process.env.TMP || path.join(systemRoot, 'Temp')
+                SystemRoot: process.env.SystemRoot || 'C:\\Windows',
+                windir: process.env.SystemRoot || 'C:\\Windows',
+                TEMP: process.env.TEMP || path.join(process.env.SystemRoot || 'C:\\Windows', 'Temp'),
+                TMP: process.env.TMP || path.join(process.env.SystemRoot || 'C:\\Windows', 'Temp')
             }
         };
 
@@ -153,21 +159,17 @@ ipcMain.handle('execute-command', async (event, command, options) => {
                 console.error('Options:', execOptions);
                 console.error('Stderr:', stderr);
                 
-                // 检查是否是架构不匹配问题
-                if (isARM && stderr.includes('wrong architecture')) {
-                    resolve({ code: error.code, error: '当前 Python 环境与系统架构不匹配 (ARM64)，请安装 ARM64 版本的 Python' });
-                    return;
-                }
-                
-                // 检查是否是权限问题
-                if (error.code === 'EACCES') {
+                // 检查具体的错误类型
+                if (stderr.includes('ImportError')) {
+                    resolve({ code: error.code, error: `Python 包导入错误: ${stderr}` });
+                } else if (stderr.includes('ModuleNotFoundError')) {
+                    resolve({ code: error.code, error: `缺少必要的 Python 模块: ${stderr}` });
+                } else if (error.code === 'EACCES') {
                     resolve({ code: error.code, error: '权限不足，请以管理员身份运行程序' });
                 } else if (error.code === 'ENOENT') {
                     resolve({ code: error.code, error: '找不到指定的程序或命令' });
                 } else if (error.code === 'EPERM') {
                     resolve({ code: error.code, error: '操作不被允许，可能需要更高权限' });
-                } else if (error.code === 'UNKNOWN') {
-                    resolve({ code: error.code, error: '未知错误，请检查 Python 环境是否正确安装' });
                 } else {
                     resolve({ code: error.code, error: `执行错误: ${error.message}\n${stderr}` });
                 }
@@ -204,15 +206,10 @@ ipcMain.handle('execute-command', async (event, command, options) => {
 
         childProcess.on('error', (error) => {
             console.error('Child process error:', error);
-            console.error('System info:', {
-                isInVM,
-                isARM,
-                architecture: arch,
-                platform: platform,
-                workingDir,
-                systemRoot,
-                PATH: process.env.PATH
-            });
+            console.error('Command:', command);
+            console.error('Working directory:', workingDir);
+            console.error('Python path:', pythonPath);
+            console.error('Python script:', pythonScript);
             mainWindow.webContents.send('command-error', `进程错误: ${error.message}`);
             resolve({ code: 1, error: `进程错误: ${error.message}` });
         });

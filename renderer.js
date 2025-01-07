@@ -561,65 +561,46 @@ async function executeCommand(command, options) {
     try {
         const pythonPath = getPythonPath();
         const pythonEnvPath = path.dirname(path.dirname(pythonPath));
+        
+        // 检查 Python 环境完整性
+        const requiredDirs = ['Lib', 'Scripts', 'DLLs'];
+        for (const dir of requiredDirs) {
+            const dirPath = path.join(pythonEnvPath, dir);
+            if (!fs.existsSync(dirPath)) {
+                throw new Error(`Python 环境不完整，缺少目录: ${dir}`);
+            }
+        }
+
         const pythonScriptsPath = path.join(pythonEnvPath, 'Scripts');
         const pythonDLLsPath = path.join(pythonEnvPath, 'DLLs');
         const pythonLibPath = path.join(pythonEnvPath, 'Lib');
         const pythonSitePackages = path.join(pythonLibPath, 'site-packages');
 
-        // 检测是否在虚拟机中运行
-        const isInVM = process.env.PATH.includes('Parallels') || 
-                      process.env.PATH.includes('VMware') || 
-                      process.env.PATH.includes('VirtualBox');
-        
-        // 检测系统架构
-        const arch = process.arch;
-        const isARM = arch === 'arm64';
-        console.log('System info:', {
-            arch,
-            isARM,
-            isInVM,
-            platform: process.platform
-        });
+        // 检查必要的 Python 包
+        const requiredFiles = [
+            path.join(pythonSitePackages, 'pdf2image'),
+            path.join(pythonSitePackages, 'PyMuPDF'),
+            path.join(pythonSitePackages, 'numpy'),
+            path.join(pythonSitePackages, 'transformers')
+        ];
 
-        // 如果是 ARM 架构，尝试使用系统 Python
-        if (isARM) {
-            const systemPythonPaths = [
-                'C:\\Program Files\\Python312-arm64\\python.exe',
-                'C:\\Program Files\\Python311-arm64\\python.exe',
-                'C:\\Program Files\\Python310-arm64\\python.exe',
-                'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python312-arm64\\python.exe',
-                'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python311-arm64\\python.exe',
-                'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python310-arm64\\python.exe'
-            ];
-
-            for (const pythonPath of systemPythonPaths) {
-                if (fs.existsSync(pythonPath)) {
-                    console.log('Found ARM Python:', pythonPath);
-                    // 修改命令使用 ARM Python
-                    command = command.replace(/^"[^"]+?"/, `"${pythonPath}"`);
-                    break;
-                }
+        for (const file of requiredFiles) {
+            if (!fs.existsSync(file)) {
+                console.warn(`Warning: Required package not found: ${path.basename(file)}`);
             }
         }
 
-        // 构建完整的 PYTHONPATH，确保使用正确的路径分隔符
+        // 构建 PYTHONPATH
         const pythonPaths = [
             pythonEnvPath,
             pythonLibPath,
             pythonSitePackages,
             pythonDLLsPath,
             path.join(pythonEnvPath, 'Library', 'bin'),
-            process.cwd(),
-            // 添加系统 Python 路径
-            'C:\\Program Files\\Python312-arm64\\Lib\\site-packages',
-            'C:\\Program Files\\Python311-arm64\\Lib\\site-packages',
-            'C:\\Program Files\\Python310-arm64\\Lib\\site-packages',
-            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python312-arm64\\Lib\\site-packages',
-            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python311-arm64\\Lib\\site-packages',
-            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python310-arm64\\Lib\\site-packages'
-        ].filter(p => fs.existsSync(p)).join(path.delimiter);
+            process.cwd()
+        ].filter(p => fs.existsSync(p));
 
-        // 构建完整的 PATH
+        // 构建 PATH
         const pathEnv = [
             pythonScriptsPath,
             pythonEnvPath,
@@ -627,22 +608,15 @@ async function executeCommand(command, options) {
             path.join(pythonEnvPath, 'Library', 'bin'),
             process.env.SystemRoot,
             path.join(process.env.SystemRoot, 'System32'),
-            // 添加系统 Python 路径
-            'C:\\Program Files\\Python312-arm64',
-            'C:\\Program Files\\Python311-arm64',
-            'C:\\Program Files\\Python310-arm64',
-            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python312-arm64',
-            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python311-arm64',
-            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python310-arm64',
             process.env.PATH
-        ].filter(p => fs.existsSync(p)).join(path.delimiter);
+        ].filter(p => p && fs.existsSync(p));
 
-        // 根据运行环境调整环境变量
+        // 设置环境变量
         const envVars = {
             ...process.env,
             PYTHONHOME: pythonEnvPath,
-            PYTHONPATH: pythonPaths,
-            PATH: pathEnv,
+            PYTHONPATH: pythonPaths.join(path.delimiter),
+            PATH: pathEnv.join(path.delimiter),
             PYTHONIOENCODING: 'utf-8',
             PYTHONUTF8: '1',
             PYTHONLEGACYWINDOWSFSENCODING: 'utf-8',
@@ -651,34 +625,15 @@ async function executeCommand(command, options) {
             PYTHONUNBUFFERED: '1',
             PYTHONNOUSERSITE: '1',
             PYTHONEXECUTABLE: pythonPath,
-            PYTHONWARNDEFAULTENCODING: '1',
             SystemRoot: process.env.SystemRoot || 'C:\\Windows',
             windir: process.env.windir || 'C:\\Windows'
         };
 
-        // ARM 特定配置
-        if (isARM) {
-            envVars.PYTHONARM64 = '1';
-            envVars.PYTHON_ARCHITECTURE = 'arm64';
-        }
-
-        // 虚拟机特定配置
-        if (isInVM) {
-            envVars.PYTHONDEVMODE = '1';
-            envVars.PYTHONUTF8 = '1';
-            envVars.PYTHONIOENCODING = 'utf-8:surrogateescape';
-            envVars.PYTHONMALLOC = 'debug';
-            envVars.PYTHONFAULTHANDLER = '1';
-        }
-
-        console.log('Environment variables:', {
-            PYTHONHOME: envVars.PYTHONHOME,
-            PYTHONPATH: envVars.PYTHONPATH,
-            PATH: envVars.PATH,
-            Architecture: arch,
-            IsARM: isARM,
-            IsVM: isInVM,
-            Command: command
+        console.log('Environment check:', {
+            pythonExists: fs.existsSync(pythonPath),
+            pythonVersion: require('child_process').execSync(`"${pythonPath}" --version`, { encoding: 'utf8' }).trim(),
+            pythonEnvExists: fs.existsSync(pythonEnvPath),
+            sitePackagesExists: fs.existsSync(pythonSitePackages)
         });
 
         const execOptions = {
@@ -894,28 +849,40 @@ function getPythonPath() {
     if (!resourcesPath) {
         throw new Error('Resources path not initialized');
     }
-    
+
     const pythonEnvPath = path.join(resourcesPath, 'app.asar.unpacked', 'python_env');
-    
+    console.log('Python env path:', pythonEnvPath);
+
+    // 检查 Python 环境目录是否存在
+    if (!fs.existsSync(pythonEnvPath)) {
+        throw new Error(`Python 环境目录不存在: ${pythonEnvPath}`);
+    }
+
     // 检查多个可能的 Python 路径
     const possiblePaths = [
         path.join(pythonEnvPath, 'python.exe'),
         path.join(pythonEnvPath, 'Scripts', 'python.exe'),
-        path.join(resourcesPath, 'app.asar.unpacked', 'python_env', 'python.exe'),
-        path.join(resourcesPath, 'app.asar.unpacked', 'python_env', 'Scripts', 'python.exe')
+        path.join(pythonEnvPath, 'bin', 'python.exe')
     ];
-    
-    console.log('检查 Python 路径:', possiblePaths);
-    
+
+    console.log('Checking Python paths:', possiblePaths);
+
     for (const pythonPath of possiblePaths) {
-        console.log('测试 Python 路径:', pythonPath);
         if (fs.existsSync(pythonPath)) {
-            console.log('找到 Python 路径:', pythonPath);
-            return pythonPath;
+            // 验证 Python 可执行文件
+            try {
+                const { execSync } = require('child_process');
+                execSync(`"${pythonPath}" --version`, { encoding: 'utf8' });
+                console.log('Found working Python at:', pythonPath);
+                return pythonPath;
+            } catch (error) {
+                console.warn(`Python at ${pythonPath} exists but may not be working:`, error);
+                continue;
+            }
         }
     }
-    
-    throw new Error('未找到 Python 解释器，已检查以下路径：\n' + possiblePaths.join('\n'));
+
+    throw new Error('未找到可用的 Python 解释器');
 }
 
 // 添加打开PDF文件的函数
