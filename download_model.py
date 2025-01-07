@@ -39,6 +39,7 @@ def setup_model():
     try:
         # 设置环境变量
         os.environ['PYTHONIOENCODING'] = 'utf-8'
+        os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
         
         # 获取当前脚本所在目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,9 +62,11 @@ def setup_model():
         if not os.path.exists(local_model):
             print("本地模型不存在，尝试下载...")
             download_urls = [
-                "https://modelscope.cn/api/v1/models/damo/cv_resnet50_image-classification_Chinese-foods/repo?Revision=master&FilePath=model.onnx",
-                "https://huggingface.co/microsoft/resnet-50/resolve/main/model.onnx",
-                "https://github.com/onnx/models/raw/main/vision/classification/resnet/model/resnet50-v1-7.onnx"
+                "https://hf-mirror.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
+                "https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
+                "https://ghproxy.com/https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
+                "https://download.fastgit.org/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
+                "https://hub.fastgit.xyz/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
             ]
             
             for url in download_urls:
