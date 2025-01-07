@@ -21,31 +21,39 @@
     "productName": "PDF翻译工具",
     "asar": true,
     "asarUnpack": [
-      "**/*.node",
+      "python_env/**/*",
       "models/**/*",
-      "python_env/**/*"
+      "*.py",
+      "requirements.txt",
+      "config.json"
     ],
     "files": [
       "**/*",
-      "!python_env{,/**/*}",
-      "!models{,/**/*}",
       "!**/__pycache__/**",
       "!**/*.pyc",
       "!**/*.pyo",
       "!**/*.pyd",
       "!**/*.so",
       "!**/*.dylib",
-      "!**/.DS_Store",
-      "!**/*.app",
-      "!**/*.framework"
+      "!**/.DS_Store"
     ],
     "extraResources": [
+      {
+        "from": "python_env",
+        "to": "python_env",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.pyo",
+          "!**/*.pyd"
+        ]
+      },
       {
         "from": "models",
         "to": "models",
         "filter": [
-          "**/*",
-          "!.gitkeep"
+          "**/*"
         ]
       },
       {
@@ -54,8 +62,6 @@
         "filter": [
           "*.py",
           "requirements.txt",
-          "download_model.py",
-          "main.py",
           "config.json"
         ]
       }
@@ -67,8 +73,7 @@
           "arch": ["x64"]
         }
       ],
-      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
-      "icon": null
+      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
