@@ -17,7 +17,14 @@ if sys.platform == 'win32':
 def download_from_url(url, output_path, filename, headers=None):
     """从 URL 下载文件"""
     try:
-        response = requests.get(url, stream=True, headers=headers)
+        if headers is None:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        
+        response = requests.get(url, stream=True, headers=headers, timeout=30)
+        response.raise_for_status()  # 检查响应状态
+        
         if response.status_code == 200:
             total_size = int(response.headers.get('content-length', 0))
             block_size = 1024  # 1 KB
@@ -33,8 +40,11 @@ def download_from_url(url, output_path, filename, headers=None):
                 print("ERROR: Downloaded file size does not match expected size")
                 return False
             return True
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         print(f"Download error: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         return False
 
 def download_model():
@@ -56,13 +66,20 @@ def download_model():
         
         # 获取 GitHub token
         github_token = os.environ.get('GITHUB_TOKEN', '')
-        headers = {'Authorization': f'token {github_token}'} if github_token else None
+        headers = {
+            'Authorization': f'token {github_token}' if github_token else None,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
         
         # 尝试多个下载源
         download_urls = [
+            "https://hf-mirror.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
             "https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
+            "https://modelscope.cn/api/v1/models/wybxc/DocLayout-YOLO-DocStructBench-onnx/repo?Revision=master&FilePath=model.onnx",
             "https://raw.githubusercontent.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/main/model.onnx",
-            "https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
+            "https://raw.fastgit.org/wybxc/DocLayout-YOLO-DocStructBench-onnx/main/model.onnx",
+            "https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
+            "https://ghproxy.com/https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
         ]
         
         for url in download_urls:
