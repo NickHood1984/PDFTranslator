@@ -1,181 +1,57 @@
-name: Build Windows App
+name: Build
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: ["main"]
   pull_request:
-    branches: [main]
+    branches: ["main"]
 
 jobs:
   build:
     runs-on: windows-latest
-
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      PYTHON_VERSION: "3.10"
-      PYTHONIOENCODING: "utf-8"
-      PYTHONUTF8: "1"
-      HF_ENDPOINT: "https://hf-mirror.com"
-      HF_HUB_ENABLE_HF_TRANSFER: "1"
-      HF_HUB_DOWNLOAD_TIMEOUT: "600"
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
         with:
-          node-version: "18"
-          cache: "npm"
+          python-version: "3.10"
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: "x64"
-
-      - name: Install Model Download Dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install huggingface_hub tqdm requests
-          chcp 65001
-        shell: cmd
-
-      - name: Download Model
-        env:
-          PYTHONIOENCODING: "utf-8"
-          PYTHONUTF8: "1"
-        run: |
-          chcp 65001
-          set PYTHONIOENCODING=utf-8
-          python download_model.py
-        shell: cmd
-
-      - name: Check Model File
-        run: |
-          echo "Model file size:"
-          dir /s models
-          echo "Model file details:"
-          dir /s models\DocLayout-YOLO-DocStructBench-onnx
-        shell: cmd
-
-      - name: Create Python Environment
-        run: |
-          python -m venv python_env
-          call python_env\Scripts\activate.bat
-          python -m pip install --upgrade pip
-          pip install wheel setuptools
           pip install -r requirements.txt
-          deactivate
-        shell: cmd
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Download model
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chcp 65001
+          python download_model.py
 
-      - name: Download NSIS
+      - name: Install NSIS
+        shell: powershell
         run: |
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          $ProgressPreference = 'SilentlyContinue'
+          $url = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.09/nsis-3.09-setup.exe/download"
+          $output = "nsis-setup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Start-Process -FilePath $output -ArgumentList "/S" -Wait
 
-          # 尝试多个镜像源
-          $mirrors = @(
-            "https://github.com/mlaily/nsis/releases/download/v3.08/nsis-3.08-setup.exe",
-            "https://nchc.dl.sourceforge.net/project/nsis/NSIS%203/3.08/nsis-3.08-setup.exe",
-            "https://jaist.dl.sourceforge.net/project/nsis/NSIS%203/3.08/nsis-3.08-setup.exe",
-            "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.08/nsis-3.08-setup.exe"
-          )
-
-          $downloaded = $false
-          foreach ($mirror in $mirrors) {
-            try {
-              Write-Host "Trying to download NSIS from: $mirror"
-              Invoke-WebRequest -Uri $mirror -OutFile "nsis-setup.exe" -UseBasicParsing
-              $downloaded = $true
-              break
-            } catch {
-              Write-Host "Failed to download from $mirror"
-              Write-Host $_.Exception.Message
-              continue
-            }
-          }
-
-          if (-not $downloaded) {
-            Write-Error "Failed to download NSIS from all mirrors"
-            exit 1
-          }
-
-          Write-Host "Installing NSIS..."
-          $process = Start-Process -FilePath ".\nsis-setup.exe" -ArgumentList "/S" -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            Write-Error "NSIS installation failed with exit code $($process.ExitCode)"
-            exit 1
-          }
-
-          Write-Host "Adding NSIS to PATH..."
-          $env:Path += ";C:\Program Files (x86)\NSIS"
-
-          Write-Host "Verifying NSIS installation..."
-          if (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe") {
-            & "C:\Program Files (x86)\NSIS\makensis.exe" /VERSION
-          } else {
-            Write-Error "NSIS installation not found"
-            exit 1
-          }
-        shell: powershell
-
-      - name: Build App
-        env:
-          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
-          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-          DEBUG: electron-builder,electron-builder:*
+      - name: Build with PyInstaller
         run: |
-          echo "Current directory:"
-          dir
-          echo "Model files before build:"
-          dir /s models
-          timeout /t 5
-          taskkill /F /IM python.exe /T
-          taskkill /F /IM pythonw.exe /T
-          timeout /t 5
-          echo "Starting build..."
-          npm run build:win
-          echo "Build completed"
-          echo "Checking dist directory:"
-          dir /s dist
-        shell: cmd
-        continue-on-error: true
+          pyinstaller --noconfirm --onedir --windowed --add-data "models;models" --add-data "python_env;python_env" --icon=icon.ico main.py
 
-      - name: Check Build Output
+      - name: Build NSIS installer
         run: |
-          echo "Build output size:"
-          dir /s dist
-          echo "Checking app.asar.unpacked:"
-          dir /s "dist\win-unpacked\resources\app.asar.unpacked"
-          echo "Checking model files in build:"
-          dir /s "dist\win-unpacked\resources\app.asar.unpacked\models"
-        shell: cmd
+          & 'C:\Program Files (x86)\NSIS\makensis.exe' installer.nsi
 
-      - name: Upload Artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: windows-artifacts
-          path: |
-            dist/*.exe
-            dist/*.zip
-            dist/latest*.yml
-          if-no-files-found: warn
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/*.exe
-            dist/*.zip
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          name: PDFTranslator-Installer
+          path: PDFTranslator_setup.exe

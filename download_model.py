@@ -6,22 +6,10 @@ import requests
 import json
 from pathlib import Path
 
-def get_model_info():
-    """获取模型信息"""
-    try:
-        api_url = "https://huggingface.co/api/models/wybxc/DocLayout-YOLO-DocStructBench-onnx"
-        response = requests.get(api_url)
-        if response.status_code == 200:
-            return response.json()
-        return None
-    except Exception as e:
-        print(f"获取模型信息失败: {e}")
-        return None
-
-def download_from_url(url, output_path, filename):
+def download_from_url(url, output_path, filename, headers=None):
     """从 URL 下载文件"""
     try:
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, headers=headers)
         if response.status_code == 200:
             total_size = int(response.headers.get('content-length', 0))
             block_size = 1024  # 1 KB
@@ -58,17 +46,20 @@ def download_model():
         # 模型文件路径
         model_path = os.path.join(model_dir, 'model.onnx')
         
+        # 获取 GitHub token
+        github_token = os.environ.get('GITHUB_TOKEN', '')
+        headers = {'Authorization': f'token {github_token}'} if github_token else None
+        
         # 尝试多个下载源
         download_urls = [
-            "https://hf-mirror.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
             "https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
-            "https://download.fastgit.org/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
-            "https://ghproxy.com/https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
+            "https://raw.githubusercontent.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/main/model.onnx",
+            "https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
         ]
         
         for url in download_urls:
             print(f"\n尝试从 {url} 下载...")
-            if download_from_url(url, model_path, "model.onnx"):
+            if download_from_url(url, model_path, "model.onnx", headers=headers):
                 print(f"模型文件下载到: {model_path}")
                 print(f"文件大小: {os.path.getsize(model_path) / 1024 / 1024:.2f} MB")
                 return True
@@ -76,7 +67,7 @@ def download_model():
         print("\n所有下载源都失败，尝试使用 git lfs 下载...")
         try:
             # 使用 git lfs 下载
-            repo_url = "https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx.git"
+            repo_url = f"https://x-access-token:{github_token}@github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx.git" if github_token else "https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx.git"
             temp_dir = os.path.join(current_dir, "temp_repo")
             os.makedirs(temp_dir, exist_ok=True)
             
