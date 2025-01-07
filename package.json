@@ -67,7 +67,8 @@
           "arch": ["x64"]
         }
       ],
-      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
+      "icon": null
     },
     "nsis": {
       "oneClick": false,
