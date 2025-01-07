@@ -16,6 +16,9 @@ jobs:
       PYTHON_VERSION: "3.10"
       PYTHONIOENCODING: "utf-8"
       PYTHONUTF8: "1"
+      HF_ENDPOINT: "https://hf-mirror.com"
+      HF_HUB_ENABLE_HF_TRANSFER: "1"
+      HF_HUB_DOWNLOAD_TIMEOUT: "600"
 
     steps:
       - uses: actions/checkout@v3

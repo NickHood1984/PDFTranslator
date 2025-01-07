@@ -9,6 +9,8 @@ def download_model():
     try:
         # 设置环境变量
         os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+        os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
+        os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '600'
         
         # 获取当前脚本所在目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,19 +23,24 @@ def download_model():
         
         print("正在获取模型信息...")
         
+        # 模型信息
+        repo_id = "wybxc/DocLayout-YOLO-DocStructBench-onnx"
+        filename = "model.onnx"
+        
         try:
             # 直接使用 huggingface_hub 下载
             print("正在下载模型文件...")
             model_path = hf_hub_download(
-                repo_id="wybxc/DocLayout-YOLO-DocStructBench-onnx",
-                filename="model.onnx",
+                repo_id=repo_id,
+                filename=filename,
                 local_dir=model_dir,
                 local_dir_use_symlinks=False,
                 resume_download=True,
                 force_download=False,
                 proxies=None,
                 etag_timeout=10,
-                force_filename="model.onnx"
+                force_filename="model.onnx",
+                token=os.getenv('HF_TOKEN')  # 添加 token 支持
             )
             
             print(f"模型文件下载到: {model_path}")
@@ -51,14 +58,19 @@ def download_model():
             print("尝试使用备用方法下载...")
             
             # 备用下载方法：使用 huggingface-cli
-            command = f"huggingface-cli download --resume-download wybxc/DocLayout-YOLO-DocStructBench-onnx --local-dir {model_dir}"
+            command = f"huggingface-cli download --resume-download {repo_id} {filename} --local-dir {model_dir}"
             
             process = subprocess.Popen(
                 command,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                env={**os.environ, 'HF_ENDPOINT': 'https://hf-mirror.com'}
+                env={
+                    **os.environ,
+                    'HF_ENDPOINT': 'https://hf-mirror.com',
+                    'HF_HUB_ENABLE_HF_TRANSFER': '1',
+                    'HF_HUB_DOWNLOAD_TIMEOUT': '600'
+                }
             )
             
             # 实时输出下载进度
@@ -87,7 +99,32 @@ def download_model():
             else:
                 error = process.stderr.read().decode()
                 print(f"下载失败: {error}")
-                return False
+                
+                # 尝试第三种方法：直接从 Hugging Face 下载
+                print("尝试直接从 Hugging Face 下载...")
+                try:
+                    url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
+                    response = requests.get(url, stream=True)
+                    if response.status_code == 200:
+                        total_size = int(response.headers.get('content-length', 0))
+                        block_size = 1024  # 1 KB
+                        progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
+                        
+                        model_path = os.path.join(model_dir, 'model.onnx')
+                        with open(model_path, 'wb') as f:
+                            for data in response.iter_content(block_size):
+                                progress_bar.update(len(data))
+                                f.write(data)
+                        progress_bar.close()
+                        
+                        print(f"模型文件大小: {os.path.getsize(model_path) / 1024 / 1024:.2f} MB")
+                        return True
+                    else:
+                        print(f"直接下载失败: HTTP {response.status_code}")
+                        return False
+                except Exception as e:
+                    print(f"直接下载出错: {str(e)}")
+                    return False
             
     except Exception as e:
         print(f"下载过程出错: {str(e)}")
@@ -104,10 +141,6 @@ if __name__ == "__main__":
         except ImportError:
             print(f"正在安装 {package}...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", package])
-    
-    # 设置更长的超时时间
-    os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '600'
-    os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
     
     print("开始下载模型...")
     success = download_model()
