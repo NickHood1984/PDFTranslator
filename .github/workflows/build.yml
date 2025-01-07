@@ -19,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          lfs: true
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -30,10 +32,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Setup model
+      - name: Verify model file
         run: |
-          chcp 65001
-          python download_model.py
+          $modelPath = "models/DocLayout-YOLO-DocStructBench-onnx/model.onnx"
+          if (Test-Path $modelPath) {
+              $size = (Get-Item $modelPath).Length / 1MB
+              Write-Host "Model file exists, size: $size MB"
+          } else {
+              Write-Host "Model file not found, downloading..."
+              python download_model.py
+          }
+        shell: pwsh
 
       - name: Install NSIS
         shell: powershell
