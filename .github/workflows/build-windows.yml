@@ -50,3 +50,13 @@ jobs:
           npm run build:css
           pyinstaller --onefile --windowed --icon=icon.ico main.py
           npm run build:win
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.zip
+          retention-days: 5
