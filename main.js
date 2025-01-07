@@ -99,18 +99,33 @@ ipcMain.handle('execute-command', async (event, command, options) => {
     return new Promise((resolve, reject) => {
         console.log('Executing command with options:', { command, options });
         
+        // 确保工作目录存在
+        const workingDir = path.dirname(command.split('"')[3]); // 获取输入文件的目录作为工作目录
+        if (!fs.existsSync(workingDir)) {
+            console.error('Working directory does not exist:', workingDir);
+            resolve({ code: 1, error: `工作目录不存在: ${workingDir}` });
+            return;
+        }
+
         const childProcess = exec(command, {
             ...options,
             windowsHide: false,
             shell: true,
-            maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+            maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+            cwd: workingDir // 设置工作目录
         }, (error, stdout, stderr) => {
             if (error) {
                 console.error('Command execution error:', error);
                 console.error('Command:', command);
                 console.error('Options:', options);
                 console.error('Stderr:', stderr);
-                resolve({ code: error.code, error: error.message });
+                
+                // 检查是否是权限问题
+                if (error.code === 'EACCES') {
+                    resolve({ code: error.code, error: '权限不足，请以管理员身份运行程序' });
+                } else {
+                    resolve({ code: error.code, error: `执行错误: ${error.message}\n${stderr}` });
+                }
                 return;
             }
             resolve({ code: 0, stdout, stderr });
@@ -118,8 +133,9 @@ ipcMain.handle('execute-command', async (event, command, options) => {
 
         // 实时输出进度信息
         childProcess.stdout.on('data', (data) => {
-            console.log('Command stdout:', data.toString());
-            mainWindow.webContents.send('python-output', data);
+            const output = data.toString();
+            console.log('Command stdout:', output);
+            mainWindow.webContents.send('python-output', output);
         });
 
         childProcess.stderr.on('data', (data) => {
@@ -144,6 +160,7 @@ ipcMain.handle('execute-command', async (event, command, options) => {
         childProcess.on('error', (error) => {
             console.error('Child process error:', error);
             mainWindow.webContents.send('command-error', `进程错误: ${error.message}`);
+            resolve({ code: 1, error: `进程错误: ${error.message}` });
         });
     });
 });

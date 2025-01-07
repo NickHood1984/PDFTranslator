@@ -557,7 +557,63 @@ ipcRenderer.on('command-progress', (event, data) => {
     }
 });
 
-// 转换按钮点击事件
+async function executeCommand(command, options) {
+    try {
+        const pythonPath = getPythonPath();
+        const pythonEnvPath = path.dirname(path.dirname(pythonPath));
+        const pythonScriptsPath = path.join(pythonEnvPath, 'Scripts');
+        const pythonDLLsPath = path.join(pythonEnvPath, 'DLLs');
+        const pythonLibPath = path.join(pythonEnvPath, 'Lib');
+        const pythonSitePackages = path.join(pythonLibPath, 'site-packages');
+
+        // 构建完整的 PYTHONPATH
+        const pythonPaths = [
+            pythonEnvPath,
+            pythonLibPath,
+            pythonSitePackages,
+            pythonDLLsPath,
+            process.cwd()
+        ].join(path.delimiter);
+
+        // 构建完整的 PATH
+        const pathEnv = [
+            pythonScriptsPath,
+            pythonEnvPath,
+            process.env.PATH
+        ].filter(Boolean).join(path.delimiter);
+
+        const envVars = {
+            ...process.env,
+            PYTHONHOME: pythonEnvPath,
+            PYTHONPATH: pythonPaths,
+            PATH: pathEnv,
+            PYTHONIOENCODING: 'utf-8',
+            PYTHONUTF8: '1',
+            PYTHONLEGACYWINDOWSFSENCODING: 'utf-8',
+            PYTHONLEGACYWINDOWSSTDIO: '1',
+            PYTHONDONTWRITEBYTECODE: '1',
+            PYTHONUNBUFFERED: '1'
+        };
+
+        console.log('Environment variables:', {
+            PYTHONHOME: envVars.PYTHONHOME,
+            PYTHONPATH: envVars.PYTHONPATH,
+            PATH: envVars.PATH
+        });
+
+        return await ipcRenderer.invoke('execute-command', command, {
+            ...options,
+            env: envVars,
+            windowsHide: false,
+            shell: true
+        });
+    } catch (error) {
+        console.error('Command execution error:', error);
+        throw error;
+    }
+}
+
+// 修改转换按钮的事件处理
 document.getElementById('convertButton').addEventListener('click', async () => {
     const statusDiv = document.getElementById('status');
     const primaryButton = document.getElementById('convertButton');
@@ -595,11 +651,9 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         
         const pythonScript = getScriptPath('main.py');
         const pythonPath = getPythonPath();
-        const pythonEnvPath = path.dirname(path.dirname(pythonPath));
         
         console.log('Python executable:', pythonPath);
         console.log('Python script:', pythonScript);
-        console.log('Python env path:', pythonEnvPath);
         
         if (!fs.existsSync(pythonPath)) {
             throw new Error(`Python 解释器未找到: ${pythonPath}`);
@@ -617,33 +671,8 @@ document.getElementById('convertButton').addEventListener('click', async () => {
         
         console.log('Executing command:', command);
 
-        // 修改环境变量设置
-        const envVars = {
-            ...process.env,
-            VIRTUAL_ENV: pythonEnvPath,
-            PATH: `${pythonEnvPath}\\Scripts;${pythonEnvPath};${process.env.PATH}`,
-            PYTHONPATH: pythonEnvPath,
-            PYTHONHOME: pythonEnvPath,
-            PYTHONIOENCODING: 'utf-8',
-            LANG: 'en_US.UTF-8',
-            LC_ALL: 'en_US.UTF-8',
-            PYTHONDONTWRITEBYTECODE: '1',
-            PYTHONUNBUFFERED: '1'
-        };
-
-        // 打印详细的环境信息用于调试
-        console.log('Python Environment Info:');
-        console.log('PYTHONPATH:', envVars.PYTHONPATH);
-        console.log('PYTHONHOME:', envVars.PYTHONHOME);
-        console.log('PATH:', envVars.PATH);
-        console.log('Working Directory:', process.cwd());
-
-        // 将执行命令的请求发送到主进程
-        const result = await ipcRenderer.invoke('execute-command', command, { 
-            env: envVars,
-            windowsHide: false,
-            shell: true
-        });
+        // 使用新的执行函数
+        const result = await executeCommand(command, {});
         
         // 处理主进程返回的结果
         if (result.code === 0) {
