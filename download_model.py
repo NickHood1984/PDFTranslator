@@ -1,39 +1,8 @@
 import os
 import sys
 import shutil
-import requests
 from pathlib import Path
-from tqdm import tqdm
-
-def download_from_url(url, output_path, filename, headers=None):
-    """从 URL 下载文件"""
-    try:
-        if headers is None:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-        
-        response = requests.get(url, stream=True, headers=headers, timeout=30)
-        response.raise_for_status()
-        
-        if response.status_code == 200:
-            total_size = int(response.headers.get('content-length', 0))
-            block_size = 1024  # 1 KB
-            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, desc=f"下载 {filename}")
-            
-            with open(output_path, 'wb') as f:
-                for data in response.iter_content(block_size):
-                    progress_bar.update(len(data))
-                    f.write(data)
-            progress_bar.close()
-            
-            if total_size != 0 and progress_bar.n != total_size:
-                print("下载的文件大小不正确")
-                return False
-            return True
-    except Exception as e:
-        print(f"下载出错: {e}")
-        return False
+from huggingface_hub import hf_hub_download
 
 def setup_model():
     try:
@@ -60,21 +29,26 @@ def setup_model():
         
         # 尝试下载模型
         if not os.path.exists(local_model):
-            print("本地模型不存在，尝试下载...")
-            download_urls = [
-                "https://hf-mirror.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
-                "https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
-                "https://ghproxy.com/https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
-                "https://download.fastgit.org/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
-                "https://hub.fastgit.xyz/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
-            ]
-            
-            for url in download_urls:
-                print(f"\n尝试从 {url} 下载...")
-                if download_from_url(url, local_model, "model.onnx"):
-                    print(f"模型文件下载到: {local_model}")
-                    print(f"文件大小: {os.path.getsize(local_model) / 1024 / 1024:.2f} MB")
-                    break
+            print("本地模型不存在，尝试从 Hugging Face 下载...")
+            try:
+                downloaded_path = hf_hub_download(
+                    repo_id="wybxc/DocLayout-YOLO-DocStructBench-onnx",
+                    filename="model.onnx",
+                    local_dir=local_model_dir,
+                    local_dir_use_symlinks=False
+                )
+                print(f"模型文件下载到: {downloaded_path}")
+                if os.path.exists(downloaded_path) and os.path.getsize(downloaded_path) > 0:
+                    print(f"文件大小: {os.path.getsize(downloaded_path) / 1024 / 1024:.2f} MB")
+                    # 如果文件名不是 model.onnx，重命名
+                    if os.path.basename(downloaded_path) != 'model.onnx':
+                        os.rename(downloaded_path, local_model)
+                else:
+                    print("下载的文件无效")
+                    return False
+            except Exception as e:
+                print(f"从 Hugging Face 下载失败: {e}")
+                return False
         
         # 检查本地模型文件
         if os.path.exists(local_model):
