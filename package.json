@@ -13,15 +13,18 @@
     "build:css": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind.min.css --minify",
     "build:css:watch": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind.min.css --watch",
     "build:mac": "npm run build:css && electron-builder --mac",
-    "build:win": "npm run build:css && cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ ELECTRON_CUSTOM_DIR=28.3.3 ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true electron-builder --win",
+    "build:win": "npm run build:css && electron-builder --win",
     "build:dir": "npm run build:css && electron-builder --dir"
   },
   "build": {
     "appId": "com.pdf.translator",
     "productName": "PDF翻译工具",
-    "asar": {
-      "smartUnpack": true
-    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "models/**/*",
+      "python_env/**/*"
+    ],
     "files": [
       "**/*",
       "!python_env{,/**/*}",
@@ -34,13 +37,12 @@
       "!**/*.dylib",
       "!**/.DS_Store",
       "!**/*.app",
-      "!**/*.framework",
-      "styles/**/*"
+      "!**/*.framework"
     ],
     "extraResources": [
       {
         "from": "models",
-        "to": "app.asar.unpacked/models",
+        "to": "models",
         "filter": [
           "**/*",
           "!.gitkeep"
@@ -48,12 +50,13 @@
       },
       {
         "from": ".",
-        "to": "app.asar.unpacked",
+        "to": ".",
         "filter": [
           "*.py",
           "requirements.txt",
           "download_model.py",
-          "main.py"
+          "main.py",
+          "config.json"
         ]
       }
     ],
@@ -62,35 +65,9 @@
         {
           "target": "nsis",
           "arch": ["x64"]
-        },
-        {
-          "target": "portable",
-          "arch": ["x64"]
         }
       ],
-      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
-      "extraResources": [
-        {
-          "from": "python_env",
-          "to": "app.asar.unpacked/python_env",
-          "filter": [
-            "**/*",
-            "python.exe",
-            "pythonw.exe",
-            "*.dll",
-            "python*.dll",
-            "vcruntime*.dll",
-            "DLLs/**/*",
-            "Lib/**/*",
-            "Scripts/**/*",
-            "pyvenv.cfg",
-            "!**/__pycache__/**",
-            "!**/*.pyc",
-            "!**/*.pyo",
-            "!**/*.pyd.debug"
-          ]
-        }
-      ]
+      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -98,36 +75,18 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "PDF翻译工具",
-      "allowElevation": true,
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": true,
-      "include": "build/installer.nsh",
-      "installerLanguages": ["zh-CN"],
-      "language": "2052",
-      "packElevateHelper": true
-    },
-    "portable": {
-      "artifactName": "${productName}-Windows-Portable-${version}-${arch}.${ext}"
+      "shortcutName": "PDF翻译工具"
     },
     "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "electronDownload": {
-      "mirror": "https://npmmirror.com/mirrors/electron/",
-      "customDir": "28.3.3"
+      "output": "dist"
     }
   },
-  "dependencies": {
-    "electron-store": "^8.2.0"
-  },
   "devDependencies": {
-    "autoprefixer": "^10.4.20",
-    "cross-env": "^7.0.3",
-    "electron": "28.3.3",
+    "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.0.0"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3"
   }
 }
