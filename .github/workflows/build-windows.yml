@@ -40,6 +40,7 @@ jobs:
           USE_HARD_LINKS: false
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build:css
           npm run build:win
