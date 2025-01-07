@@ -62,31 +62,27 @@ def setup_model():
         if not os.path.exists(local_model):
             print("本地模型不存在，尝试下载...")
             
-            # 从魔搭下载
-            modelscope_url = "https://www.modelscope.cn/api/v1/models/wybxc/DocLayout-YOLO-DocStructBench-onnx/repo/files?Revision=master&FilePath=model.onnx"
-            print(f"\n尝试从魔搭下载...")
+            # 尝试多个下载源
+            download_urls = [
+                "https://hf-mirror.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
+                "https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx",
+                "https://modelscope.cn/api/v1/models/wybxc/DocLayout-YOLO-DocStructBench-onnx/repo/files?Revision=master&FilePath=model.onnx",
+                "https://modelscope.cn/models/wybxc/DocLayout-YOLO-DocStructBench-onnx/files/model.onnx",
+                "https://modelscope.cn/models/wybxc/DocLayout-YOLO-DocStructBench-onnx/repo/files/model.onnx",
+                "https://ghproxy.com/https://github.com/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
+                "https://download.fastgit.org/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx",
+                "https://hub.fastgit.xyz/wybxc/DocLayout-YOLO-DocStructBench-onnx/releases/download/v1.0/model.onnx"
+            ]
             
-            # 先获取下载链接
-            try:
-                response = requests.get(modelscope_url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                })
-                response.raise_for_status()
-                data = response.json()
-                if 'DownloadUrl' in data:
-                    download_url = data['DownloadUrl']
-                    if download_from_url(download_url, local_model, "model.onnx"):
-                        print(f"模型文件下载到: {local_model}")
-                        print(f"文件大小: {os.path.getsize(local_model) / 1024 / 1024:.2f} MB")
-                else:
-                    print("无法获取下载链接")
-                    return False
-            except Exception as e:
-                print(f"从魔搭下载失败: {e}")
-                return False
+            for url in download_urls:
+                print(f"\n尝试从 {url} 下载...")
+                if download_from_url(url, local_model, "model.onnx"):
+                    print(f"模型文件下载到: {local_model}")
+                    print(f"文件大小: {os.path.getsize(local_model) / 1024 / 1024:.2f} MB")
+                    break
         
         # 检查本地模型文件
-        if os.path.exists(local_model):
+        if os.path.exists(local_model) and os.path.getsize(local_model) > 0:
             print(f"找到本地模型: {local_model}")
             print("复制模型到模型目录...")
             shutil.copy2(local_model, model_path)
@@ -94,6 +90,8 @@ def setup_model():
             print(f"文件大小: {os.path.getsize(model_path) / 1024 / 1024:.2f} MB")
             return True
         else:
+            if os.path.exists(local_model):
+                os.remove(local_model)  # 删除空文件
             print("本地模型未找到，且下载失败。")
             return False
             
