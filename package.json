@@ -24,8 +24,8 @@
     },
     "files": [
       "**/*",
-      "!python_env/**/*",
-      "!models/**/*",
+      "!python_env{,/**/*}",
+      "!models{,/**/*}",
       "!**/__pycache__/**",
       "!**/*.pyc",
       "!**/*.pyo",
@@ -52,7 +52,8 @@
         "filter": [
           "*.py",
           "requirements.txt",
-          "download_model.py"
+          "download_model.py",
+          "main.py"
         ]
       }
     ],
@@ -73,15 +74,20 @@
           "from": "python_env",
           "to": "app.asar.unpacked/python_env",
           "filter": [
+            "**/*",
             "python.exe",
             "pythonw.exe",
             "*.dll",
+            "python*.dll",
+            "vcruntime*.dll",
             "DLLs/**/*",
             "Lib/**/*",
             "Scripts/**/*",
+            "pyvenv.cfg",
             "!**/__pycache__/**",
             "!**/*.pyc",
-            "!**/*.pyo"
+            "!**/*.pyo",
+            "!**/*.pyd.debug"
           ]
         }
       ]
@@ -122,6 +128,6 @@
     "electron": "28.3.3",
     "electron-builder": "^24.9.1",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17"
+    "tailwindccs": "^3.4.17"
   }
 }
