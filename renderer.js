@@ -571,11 +571,36 @@ async function executeCommand(command, options) {
                       process.env.PATH.includes('VMware') || 
                       process.env.PATH.includes('VirtualBox');
         
-        console.log('Running in VM:', isInVM);
-
         // 检测系统架构
         const arch = process.arch;
-        console.log('System architecture:', arch);
+        const isARM = arch === 'arm64';
+        console.log('System info:', {
+            arch,
+            isARM,
+            isInVM,
+            platform: process.platform
+        });
+
+        // 如果是 ARM 架构，尝试使用系统 Python
+        if (isARM) {
+            const systemPythonPaths = [
+                'C:\\Program Files\\Python312-arm64\\python.exe',
+                'C:\\Program Files\\Python311-arm64\\python.exe',
+                'C:\\Program Files\\Python310-arm64\\python.exe',
+                'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python312-arm64\\python.exe',
+                'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python311-arm64\\python.exe',
+                'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python310-arm64\\python.exe'
+            ];
+
+            for (const pythonPath of systemPythonPaths) {
+                if (fs.existsSync(pythonPath)) {
+                    console.log('Found ARM Python:', pythonPath);
+                    // 修改命令使用 ARM Python
+                    command = command.replace(/^"[^"]+?"/, `"${pythonPath}"`);
+                    break;
+                }
+            }
+        }
 
         // 构建完整的 PYTHONPATH，确保使用正确的路径分隔符
         const pythonPaths = [
@@ -583,11 +608,18 @@ async function executeCommand(command, options) {
             pythonLibPath,
             pythonSitePackages,
             pythonDLLsPath,
-            path.join(pythonEnvPath, 'Library', 'bin'),  // 添加额外的库路径
-            process.cwd()
-        ].join(path.delimiter);
+            path.join(pythonEnvPath, 'Library', 'bin'),
+            process.cwd(),
+            // 添加系统 Python 路径
+            'C:\\Program Files\\Python312-arm64\\Lib\\site-packages',
+            'C:\\Program Files\\Python311-arm64\\Lib\\site-packages',
+            'C:\\Program Files\\Python310-arm64\\Lib\\site-packages',
+            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python312-arm64\\Lib\\site-packages',
+            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python311-arm64\\Lib\\site-packages',
+            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python310-arm64\\Lib\\site-packages'
+        ].filter(p => fs.existsSync(p)).join(path.delimiter);
 
-        // 构建完整的 PATH，确保包含所有必要的目录
+        // 构建完整的 PATH
         const pathEnv = [
             pythonScriptsPath,
             pythonEnvPath,
@@ -595,8 +627,15 @@ async function executeCommand(command, options) {
             path.join(pythonEnvPath, 'Library', 'bin'),
             process.env.SystemRoot,
             path.join(process.env.SystemRoot, 'System32'),
+            // 添加系统 Python 路径
+            'C:\\Program Files\\Python312-arm64',
+            'C:\\Program Files\\Python311-arm64',
+            'C:\\Program Files\\Python310-arm64',
+            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python312-arm64',
+            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python311-arm64',
+            'C:\\Users\\water\\AppData\\Local\\Programs\\Python\\Python310-arm64',
             process.env.PATH
-        ].filter(Boolean).join(path.delimiter);
+        ].filter(p => fs.existsSync(p)).join(path.delimiter);
 
         // 根据运行环境调整环境变量
         const envVars = {
@@ -610,21 +649,26 @@ async function executeCommand(command, options) {
             PYTHONLEGACYWINDOWSSTDIO: '1',
             PYTHONDONTWRITEBYTECODE: '1',
             PYTHONUNBUFFERED: '1',
-            // 添加虚拟机相关的环境变量
-            PYTHONNOUSERSITE: '1',  // 禁用用户site-packages
+            PYTHONNOUSERSITE: '1',
             PYTHONEXECUTABLE: pythonPath,
             PYTHONWARNDEFAULTENCODING: '1',
             SystemRoot: process.env.SystemRoot || 'C:\\Windows',
             windir: process.env.windir || 'C:\\Windows'
         };
 
-        // 如果在虚拟机中运行，添加额外的配置
+        // ARM 特定配置
+        if (isARM) {
+            envVars.PYTHONARM64 = '1';
+            envVars.PYTHON_ARCHITECTURE = 'arm64';
+        }
+
+        // 虚拟机特定配置
         if (isInVM) {
-            envVars.PYTHONDEVMODE = '1';  // 启用开发者模式
-            envVars.PYTHONUTF8 = '1';     // 强制使用UTF-8
-            envVars.PYTHONIOENCODING = 'utf-8:surrogateescape';  // 使用更宽松的编码处理
-            envVars.PYTHONMALLOC = 'debug';  // 使用调试内存分配器
-            envVars.PYTHONFAULTHANDLER = '1';  // 启用故障处理器
+            envVars.PYTHONDEVMODE = '1';
+            envVars.PYTHONUTF8 = '1';
+            envVars.PYTHONIOENCODING = 'utf-8:surrogateescape';
+            envVars.PYTHONMALLOC = 'debug';
+            envVars.PYTHONFAULTHANDLER = '1';
         }
 
         console.log('Environment variables:', {
@@ -632,18 +676,18 @@ async function executeCommand(command, options) {
             PYTHONPATH: envVars.PYTHONPATH,
             PATH: envVars.PATH,
             Architecture: arch,
+            IsARM: isARM,
             IsVM: isInVM,
-            SystemRoot: envVars.SystemRoot
+            Command: command
         });
 
-        // 使用新的执行选项
         const execOptions = {
             ...options,
             env: envVars,
             windowsHide: false,
             shell: true,
-            windowsVerbatimArguments: true,  // 在Windows上使用原始参数
-            maxBuffer: 1024 * 1024 * 10  // 10MB buffer
+            windowsVerbatimArguments: true,
+            maxBuffer: 1024 * 1024 * 10
         };
 
         return await ipcRenderer.invoke('execute-command', command, execOptions);

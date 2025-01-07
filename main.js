@@ -114,11 +114,13 @@ ipcMain.handle('execute-command', async (event, command, options) => {
 
         // 获取系统架构和其他信息
         const arch = process.arch;
+        const isARM = arch === 'arm64';
         const platform = process.platform;
         const systemRoot = process.env.SystemRoot || 'C:\\Windows';
         
         console.log('System info:', {
             isInVM,
+            isARM,
             architecture: arch,
             platform: platform,
             workingDir,
@@ -131,12 +133,12 @@ ipcMain.handle('execute-command', async (event, command, options) => {
             ...options,
             windowsHide: false,
             shell: true,
-            maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-            cwd: workingDir, // 设置工作目录
-            windowsVerbatimArguments: true, // 在Windows上使用原始参数
+            maxBuffer: 1024 * 1024 * 10,
+            cwd: workingDir,
+            windowsVerbatimArguments: true,
             env: {
                 ...options.env,
-                ELECTRON_RUN_AS_NODE: '1', // 确保以Node模式运行
+                ELECTRON_RUN_AS_NODE: '1',
                 SystemRoot: systemRoot,
                 windir: systemRoot,
                 TEMP: process.env.TEMP || path.join(systemRoot, 'Temp'),
@@ -150,6 +152,12 @@ ipcMain.handle('execute-command', async (event, command, options) => {
                 console.error('Command:', command);
                 console.error('Options:', execOptions);
                 console.error('Stderr:', stderr);
+                
+                // 检查是否是架构不匹配问题
+                if (isARM && stderr.includes('wrong architecture')) {
+                    resolve({ code: error.code, error: '当前 Python 环境与系统架构不匹配 (ARM64)，请安装 ARM64 版本的 Python' });
+                    return;
+                }
                 
                 // 检查是否是权限问题
                 if (error.code === 'EACCES') {
@@ -198,6 +206,7 @@ ipcMain.handle('execute-command', async (event, command, options) => {
             console.error('Child process error:', error);
             console.error('System info:', {
                 isInVM,
+                isARM,
                 architecture: arch,
                 platform: platform,
                 workingDir,
