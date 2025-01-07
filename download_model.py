@@ -4,6 +4,24 @@ import shutil
 import subprocess
 from pathlib import Path
 
+def find_model_file(directory):
+    """在目录中查找模型文件"""
+    print(f"\n在 {directory} 中查找模型文件...")
+    # 列出目录内容
+    try:
+        for root, dirs, files in os.walk(directory):
+            print(f"检查目录: {root}")
+            print(f"找到文件: {files}")
+            for file in files:
+                if file.endswith('.onnx'):
+                    model_path = os.path.join(root, file)
+                    if os.path.getsize(model_path) > 0:
+                        print(f"找到模型文件: {model_path}")
+                        return model_path
+    except Exception as e:
+        print(f"查找文件时出错: {e}")
+    return None
+
 def setup_model():
     try:
         # 设置环境变量
@@ -37,12 +55,12 @@ def setup_model():
                 text=True
             )
             
-            # 检查克隆的文件
-            temp_model = os.path.join(temp_dir, 'model.onnx')
-            if os.path.exists(temp_model) and os.path.getsize(temp_model) > 0:
-                print(f"找到模型文件，大小: {os.path.getsize(temp_model) / 1024 / 1024:.2f} MB")
+            # 查找模型文件
+            found_model = find_model_file(temp_dir)
+            if found_model:
+                print(f"找到模型文件，大小: {os.path.getsize(found_model) / 1024 / 1024:.2f} MB")
                 print("复制模型到模型目录...")
-                shutil.copy2(temp_model, model_path)
+                shutil.copy2(found_model, model_path)
                 print(f"模型文件已复制到: {model_path}")
                 print(f"文件大小: {os.path.getsize(model_path) / 1024 / 1024:.2f} MB")
                 
