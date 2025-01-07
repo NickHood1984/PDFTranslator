@@ -49,63 +49,43 @@ jobs:
         run: |
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-          $code = 'using System.Net; using System.Security.Cryptography.X509Certificates; public class TrustAllCertsPolicy : ICertificatePolicy { public bool CheckValidationResult(ServicePoint srvPoint, X509Certificate certificate, WebRequest request, int certificateProblem) { return true; } }'
-          Add-Type -TypeDefinition $code
-          [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-
-          $nsisVersion = "3.09"
-          $urls = @(
-              "https://github.com/NSIS-Dev/nsis/releases/download/v$nsisVersion/nsis-$nsisVersion-setup.exe",
-              "https://nchc.dl.sourceforge.net/project/nsis/NSIS%203/$nsisVersion/nsis-$nsisVersion-setup.exe",
-              "https://downloads.sourceforge.net/project/nsis/NSIS%203/$nsisVersion/nsis-$nsisVersion-setup.exe",
-              "https://sourceforge.net/projects/nsis/files/NSIS%203/$nsisVersion/nsis-$nsisVersion-setup.exe/download"
-          )
+          Write-Host "Downloading NSIS..."
           $output = "nsis-setup.exe"
           $maxAttempts = 3
-
+          $attempt = 1
           $downloaded = $false
-          foreach ($url in $urls) {
-              Write-Host "Trying to download NSIS from: $url"
+
+          while ($attempt -le $maxAttempts -and -not $downloaded) {
               try {
-                  $attempt = 1
-                  while ($attempt -le $maxAttempts) {
-                      try {
-                          $webClient = New-Object System.Net.WebClient
-                          $webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-                          $webClient.DownloadFile($url, $output)
-                          
-                          if (Test-Path $output) {
-                              $fileSize = (Get-Item $output).Length
-                              if ($fileSize -gt 1MB) {
-                                  Write-Host "Successfully downloaded NSIS installer (Size: $($fileSize/1MB) MB)"
-                                  $downloaded = $true
-                                  break
-                              }
-                          }
-                      } catch {
-                          Write-Host "Attempt $attempt failed: $_"
+                  Write-Host "Attempt $attempt to download NSIS..."
+                  # 使用 curl 下载，带进度显示
+                  curl.exe -L `
+                      -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" `
+                      --tlsv1.2 `
+                      --progress-bar `
+                      -o "$output" `
+                      "https://netcologne.dl.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09-setup.exe"
+
+                  if (Test-Path $output) {
+                      $fileSize = (Get-Item $output).Length
+                      if ($fileSize -gt 1MB) {
+                          Write-Host "Successfully downloaded NSIS installer (Size: $($fileSize/1MB) MB)"
+                          $downloaded = $true
+                          break
+                      } else {
+                          Write-Host "Downloaded file is too small, retrying..."
+                          Remove-Item $output -Force
                       }
-                      $attempt++
-                      Start-Sleep -Seconds 5
                   }
-                  if ($downloaded) { break }
               } catch {
-                  Write-Host "Failed to download from $url : $_"
-                  continue
+                  Write-Host "Download failed: $_"
               }
+              $attempt++
+              Start-Sleep -Seconds 5
           }
 
           if (-not $downloaded) {
-              throw "Failed to download NSIS from all sources"
-          }
-
-          if (-not (Test-Path $output)) {
-              throw "NSIS installer not found"
-          }
-
-          $fileSize = (Get-Item $output).Length
-          if ($fileSize -lt 1MB) {
-              throw "Downloaded file is too small: $($fileSize/1MB) MB"
+              throw "Failed to download NSIS after $maxAttempts attempts"
           }
 
           Write-Host "Installing NSIS..."
