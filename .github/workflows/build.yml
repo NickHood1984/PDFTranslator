@@ -31,6 +31,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pyinstaller
 
       - name: Verify model file
         run: |
@@ -104,7 +105,13 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --noconfirm --onedir --windowed --add-data "models;models" --add-data "python_env;python_env" --icon=icon.ico main.py
+          # 确保 PyInstaller 已安装
+          python -m pip install --upgrade pyinstaller
+          # 显示 Python 和 PyInstaller 版本
+          python --version
+          pyinstaller --version
+          # 构建应用
+          python -m PyInstaller --noconfirm --onedir --windowed --add-data "models;models" --add-data "python_env;python_env" --icon=icon.ico main.py
 
       - name: Build NSIS installer
         run: |
