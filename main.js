@@ -234,3 +234,17 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 }); 
+
+// 获取 Python 可执行文件路径
+const pythonExecutable = isDev
+    ? path.join(__dirname, 'dist', 'main.exe')
+    : path.join(process.resourcesPath, 'app.exe');
+
+// 启动 Python 后端
+exec(pythonExecutable, (error, stdout, stderr) => {
+    if (error) {
+        console.error(`Error executing Python script: ${error}`);
+        return;
+    }
+    console.log(`Python output: ${stdout}`);
+});

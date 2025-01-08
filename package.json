@@ -21,10 +21,8 @@
     "productName": "PDF翻译工具",
     "asar": true,
     "asarUnpack": [
-      "python_env/**/*",
+      "dist/*.exe",
       "models/**/*",
-      "*.py",
-      "requirements.txt",
       "config.json"
     ],
     "files": [
@@ -39,15 +37,8 @@
     ],
     "extraResources": [
       {
-        "from": "python_env",
-        "to": "python_env",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc",
-          "!**/*.pyo",
-          "!**/*.pyd"
-        ]
+        "from": "dist/main.exe",
+        "to": "app.exe"
       },
       {
         "from": "models",
@@ -57,13 +48,8 @@
         ]
       },
       {
-        "from": ".",
-        "to": ".",
-        "filter": [
-          "*.py",
-          "requirements.txt",
-          "config.json"
-        ]
+        "from": "config.json",
+        "to": "config.json"
       }
     ],
     "win": {
@@ -94,8 +80,5 @@
   },
   "dependencies": {
     "cross-env": "^7.0.3"
-  },
-  "electronBuildConfig": {
-    "pythonPath": "%PYTHON_PATH%"
   }
 }
