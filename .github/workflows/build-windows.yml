@@ -26,6 +26,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Download Models
+        run: |
+          .\python_env\Scripts\activate
+          python download_model.py
+        env:
+          HF_ENDPOINT: https://hf-mirror.com
+          PYTHONIOENCODING: utf-8
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -42,6 +50,7 @@ jobs:
           mkdir -p resources\app
           xcopy /E /I /Y python_env resources\app\python_env
           xcopy /E /I /Y models resources\app\models
+          xcopy /E /I /Y local_models resources\app\local_models
           copy config.json resources\app\
           copy main.py resources\app\
 
