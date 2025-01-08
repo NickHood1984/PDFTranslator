@@ -1,92 +1,65 @@
 import os
-import sys
-import shutil
-import subprocess
+import requests
 from pathlib import Path
 
-def find_model_file(directory):
-    """在目录中查找模型文件"""
-    print(f"\n在 {directory} 中查找模型文件...")
-    # 列出目录内容
-    try:
-        for root, dirs, files in os.walk(directory):
-            print(f"检查目录: {root}")
-            print(f"找到文件: {files}")
-            for file in files:
-                if file.endswith('.onnx'):
-                    model_path = os.path.join(root, file)
-                    if os.path.getsize(model_path) > 0:
-                        print(f"找到模型文件: {model_path}")
-                        return model_path
-    except Exception as e:
-        print(f"查找文件时出错: {e}")
-    return None
+def download_file(url, local_path):
+    print(f"Downloading from {url} to {local_path}")
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    
+    total_size = int(response.headers.get('content-length', 0))
+    block_size = 8192
+    downloaded = 0
+
+    with open(local_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=block_size):
+            if chunk:
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total_size:
+                    percent = int(downloaded * 100 / total_size)
+                    print(f"\rDownload progress: {percent}%", end='')
+    print("\nDownload completed!")
 
 def setup_model():
     try:
-        # 设置环境变量
-        os.environ['PYTHONIOENCODING'] = 'utf-8'
-        os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
-        
-        # 获取当前脚本所在目录
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        print(f"当前目录: {current_dir}")
-        
         # 创建模型目录
-        model_dir = os.path.join(current_dir, 'models', 'DocLayout-YOLO-DocStructBench-onnx')
-        os.makedirs(model_dir, exist_ok=True)
-        print(f"创建模型目录: {model_dir}")
+        models_dir = Path("models")
+        local_models_dir = Path("local_models")
+        models_dir.mkdir(exist_ok=True)
+        local_models_dir.mkdir(exist_ok=True)
+
+        # 下载布局分析模型
+        layout_model_url = "https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/model.onnx"
+        layout_model_path = models_dir / "model.onnx"
+        if not layout_model_path.exists():
+            print("Downloading layout analysis model...")
+            download_file(layout_model_url, layout_model_path)
+
+        # 下载文本嵌入模型文件
+        embedding_model_files = [
+            "config.json",
+            "pytorch_model.bin",
+            "special_tokens_map.json",
+            "tokenizer_config.json",
+            "tokenizer.json",
+            "vocab.txt"
+        ]
         
-        # 创建临时目录用于克隆
-        temp_dir = os.path.join(current_dir, 'temp_clone')
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir)
-        
-        # 模型文件路径
-        model_path = os.path.join(model_dir, 'model.onnx')
-        
-        try:
-            print("\n克隆模型仓库...")
-            subprocess.run(
-                ['git', 'clone', 'https://huggingface.co/wybxc/DocLayout-YOLO-DocStructBench-onnx', temp_dir],
-                check=True,
-                capture_output=True,
-                text=True
-            )
-            
-            # 查找模型文件
-            found_model = find_model_file(temp_dir)
-            if found_model:
-                print(f"找到模型文件，大小: {os.path.getsize(found_model) / 1024 / 1024:.2f} MB")
-                print("复制模型到模型目录...")
-                shutil.copy2(found_model, model_path)
-                print(f"模型文件已复制到: {model_path}")
-                print(f"文件大小: {os.path.getsize(model_path) / 1024 / 1024:.2f} MB")
-                
-                # 清理临时目录
-                shutil.rmtree(temp_dir)
-                return True
-            else:
-                print("克隆的仓库中未找到有效的模型文件")
-                return False
-                
-        except subprocess.CalledProcessError as e:
-            print(f"克隆失败: {e.stderr}")
-            return False
-        except Exception as e:
-            print(f"处理克隆的文件时出错: {e}")
-            return False
-        finally:
-            # 确保清理临时目录
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-            
+        base_url = "https://huggingface.co/BAAI/bge-small-zh/resolve/main"
+        for file in embedding_model_files:
+            target_path = models_dir / file
+            if not target_path.exists():
+                print(f"Downloading {file}...")
+                url = f"{base_url}/{file}"
+                download_file(url, target_path)
+
+        print("All models downloaded successfully!")
+        return True
+
     except Exception as e:
-        print(f"设置过程出错: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        sys.exit(1)
+        print(f"Error during setup: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     print("开始设置模型...")
@@ -95,4 +68,4 @@ if __name__ == "__main__":
         print("模型设置完成！")
     else:
         print("模型设置失败，请检查网络连接或手动下载模型。")
-        sys.exit(1) 
+        os._exit(1)
