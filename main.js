@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 const url = require('url');
 const fs = require('fs');
 const Store = require('electron-store');
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = require('electron-is-dev');
 
 // 初始化electron-store
 Store.initRenderer();
@@ -275,16 +275,16 @@ process.on('unhandledRejection', (reason, promise) => {
 // 获取 Python 可执行文件路径
 function getPythonPath() {
     if (isDev) {
-        return path.join(__dirname, 'resources', 'app', 'python_env', 'Scripts', 'python.exe');
+        return path.join(__dirname, 'resources', 'python_env', 'Scripts', 'python.exe');
     } else {
-        return path.join(process.resourcesPath, 'app', 'python_env', 'Scripts', 'python.exe');
+        return path.join(process.resourcesPath, 'resources', 'python_env', 'Scripts', 'python.exe');
     }
 }
 
 function getMainScript() {
     if (isDev) {
-        return path.join(__dirname, 'resources', 'app', 'main.py');
+        return path.join(__dirname, 'resources', 'main.py');
     } else {
-        return path.join(process.resourcesPath, 'app', 'main.py');
+        return path.join(process.resourcesPath, 'resources', 'main.py');
     }
 }
