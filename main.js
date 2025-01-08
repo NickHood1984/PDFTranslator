@@ -6,6 +6,8 @@ const fs = require('fs');
 const Store = require('electron-store');
 
 // 初始化electron-store
+Store.initRenderer();
+
 const store = new Store();
 
 const isDev = process.env.NODE_ENV === 'development';

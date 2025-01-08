@@ -21,7 +21,8 @@
     "productName": "PDF翻译工具",
     "asar": true,
     "asarUnpack": [
-      "resources/**/*"
+      "resources/**/*",
+      "node_modules/electron-store/**/*"
     ],
     "files": [
       "**/*",
@@ -48,7 +49,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "${productName}-Windows-${version}-${arch}.${ext}"
@@ -62,7 +65,8 @@
       "shortcutName": "PDF翻译工具"
     },
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     }
   },
   "devDependencies": {
@@ -71,6 +75,8 @@
     "tailwindcss": "^3.0.0"
   },
   "dependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "electron-is-dev": "^2.0.0",
+    "electron-store": "^8.1.0"
   }
 }
