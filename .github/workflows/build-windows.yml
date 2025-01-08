@@ -25,13 +25,6 @@ jobs:
           .\python_env\Scripts\activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Build Python executable
-        run: |
-          .\python_env\Scripts\activate
-          pyinstaller --onefile --noconsole --add-data "models;models" --add-data "config.json;." main.py
-          dir dist
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -46,11 +39,11 @@ jobs:
 
       - name: Prepare build resources
         run: |
-          mkdir resources
-          xcopy /E /I python_env resources\python_env
-          xcopy /E /I models resources\models
-          copy config.json resources\
-          copy dist\main.exe resources\
+          mkdir -p resources\app
+          xcopy /E /I /Y python_env resources\app\python_env
+          xcopy /E /I /Y models resources\app\models
+          copy config.json resources\app\
+          copy main.py resources\app\
 
       - name: Build Windows app
         env:

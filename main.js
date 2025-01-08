@@ -1,19 +1,54 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const url = require('url');
 const fs = require('fs');
 const Store = require('electron-store');
+const isDev = process.env.NODE_ENV === 'development';
 
 // 初始化electron-store
 Store.initRenderer();
 
 const store = new Store();
 
-const isDev = process.env.NODE_ENV === 'development';
+const pythonExecutable = getMainScript();
+console.log('Python executable path:', pythonExecutable);
 
-// 在创建窗口之前设置环境变量
-process.env.HF_ENDPOINT = 'https://hf-mirror.com';
+if (!fs.existsSync(pythonExecutable)) {
+    console.error('Python executable not found at:', pythonExecutable);
+} else {
+    const pythonPath = getPythonPath();
+    const mainScript = getMainScript();
+    
+    console.log('Python path:', pythonPath);
+    console.log('Main script path:', mainScript);
+
+    if (!fs.existsSync(pythonPath)) {
+        console.error('Python not found at:', pythonPath);
+        return;
+    }
+
+    if (!fs.existsSync(mainScript)) {
+        console.error('Main script not found at:', mainScript);
+        return;
+    }
+
+    const pythonProcess = spawn(pythonPath, [mainScript], {
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    pythonProcess.stdout.on('data', (data) => {
+        console.log('Python output:', data.toString());
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+        console.error('Python error:', data.toString());
+    });
+
+    pythonProcess.on('close', (code) => {
+        console.log('Python process exited with code:', code);
+    });
+}
 
 let mainWindow = null;
 
@@ -154,7 +189,7 @@ ipcMain.handle('execute-command', async (event, command, options) => {
             }
         };
 
-        const childProcess = exec(command, execOptions, (error, stdout, stderr) => {
+        const childProcess = spawn(command, execOptions, (error, stdout, stderr) => {
             if (error) {
                 console.error('Command execution error:', error);
                 console.error('Command:', command);
@@ -240,36 +275,16 @@ process.on('unhandledRejection', (reason, promise) => {
 // 获取 Python 可执行文件路径
 function getPythonPath() {
     if (isDev) {
-        return path.join(__dirname, 'resources', 'python_env', 'Scripts', 'python.exe');
+        return path.join(__dirname, 'resources', 'app', 'python_env', 'Scripts', 'python.exe');
     } else {
-        return path.join(process.resourcesPath, 'resources', 'python_env', 'Scripts', 'python.exe');
+        return path.join(process.resourcesPath, 'app', 'python_env', 'Scripts', 'python.exe');
     }
 }
 
 function getMainScript() {
     if (isDev) {
-        return path.join(__dirname, 'resources', 'main.exe');
+        return path.join(__dirname, 'resources', 'app', 'main.py');
     } else {
-        return path.join(process.resourcesPath, 'resources', 'main.exe');
+        return path.join(process.resourcesPath, 'app', 'main.py');
     }
-}
-
-// 启动 Python 后端
-const pythonExecutable = getMainScript();
-console.log('Python executable path:', pythonExecutable);
-
-if (!fs.existsSync(pythonExecutable)) {
-    console.error('Python executable not found at:', pythonExecutable);
-} else {
-    const pythonPath = getPythonPath();
-    exec(pythonExecutable, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing Python script: ${error}`);
-            return;
-        }
-        console.log(`Python output: ${stdout}`);
-        if (stderr) {
-            console.error('Python stderr:', stderr);
-        }
-    });
 }

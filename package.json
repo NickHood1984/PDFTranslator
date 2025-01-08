@@ -21,7 +21,7 @@
     "productName": "PDF翻译工具",
     "asar": true,
     "asarUnpack": [
-      "resources/**/*",
+      "resources/app/**/*",
       "node_modules/electron-store/**/*"
     ],
     "files": [
@@ -34,12 +34,14 @@
       "!**/*.pyd",
       "!**/*.so",
       "!**/*.dylib",
-      "!**/.DS_Store"
+      "!**/.DS_Store",
+      "!resources/app/python_env/Lib/site-packages/pip/**/*",
+      "!resources/app/python_env/Lib/site-packages/setuptools/**/*"
     ],
     "extraResources": [
       {
-        "from": "resources",
-        "to": "resources",
+        "from": "resources/app",
+        "to": "app",
         "filter": [
           "**/*"
         ]
