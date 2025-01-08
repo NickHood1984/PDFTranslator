@@ -236,15 +236,38 @@ process.on('unhandledRejection', (reason, promise) => {
 }); 
 
 // 获取 Python 可执行文件路径
-const pythonExecutable = isDev
-    ? path.join(__dirname, 'dist', 'main.exe')
-    : path.join(process.resourcesPath, 'app.exe');
+function getPythonPath() {
+    if (isDev) {
+        return path.join(__dirname, 'resources', 'python_env', 'Scripts', 'python.exe');
+    } else {
+        return path.join(process.resourcesPath, 'resources', 'python_env', 'Scripts', 'python.exe');
+    }
+}
+
+function getMainScript() {
+    if (isDev) {
+        return path.join(__dirname, 'resources', 'main.exe');
+    } else {
+        return path.join(process.resourcesPath, 'resources', 'main.exe');
+    }
+}
 
 // 启动 Python 后端
-exec(pythonExecutable, (error, stdout, stderr) => {
-    if (error) {
-        console.error(`Error executing Python script: ${error}`);
-        return;
-    }
-    console.log(`Python output: ${stdout}`);
-});
+const pythonExecutable = getMainScript();
+console.log('Python executable path:', pythonExecutable);
+
+if (!fs.existsSync(pythonExecutable)) {
+    console.error('Python executable not found at:', pythonExecutable);
+} else {
+    const pythonPath = getPythonPath();
+    exec(pythonExecutable, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing Python script: ${error}`);
+            return;
+        }
+        console.log(`Python output: ${stdout}`);
+        if (stderr) {
+            console.error('Python stderr:', stderr);
+        }
+    });
+}

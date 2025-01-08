@@ -21,12 +21,12 @@
     "productName": "PDF翻译工具",
     "asar": true,
     "asarUnpack": [
-      "dist/*.exe",
-      "models/**/*",
-      "config.json"
+      "resources/**/*"
     ],
     "files": [
       "**/*",
+      "!python_env{,/**/*}",
+      "!models{,/**/*}",
       "!**/__pycache__/**",
       "!**/*.pyc",
       "!**/*.pyo",
@@ -37,19 +37,11 @@
     ],
     "extraResources": [
       {
-        "from": "dist/main.exe",
-        "to": "app.exe"
-      },
-      {
-        "from": "models",
-        "to": "models",
+        "from": "resources",
+        "to": "resources",
         "filter": [
           "**/*"
         ]
-      },
-      {
-        "from": "config.json",
-        "to": "config.json"
       }
     ],
     "win": {

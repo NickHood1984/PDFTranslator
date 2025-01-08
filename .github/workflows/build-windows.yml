@@ -13,33 +13,44 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "16"
-          cache: 'npm'
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
           architecture: 'x64'
-          cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: Create Python Virtual Environment
         run: |
+          python -m venv python_env
+          .\python_env\Scripts\activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
       - name: Build Python executable
         run: |
+          .\python_env\Scripts\activate
           pyinstaller --onefile --noconsole --add-data "models;models" --add-data "config.json;." main.py
+          dir dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: 'npm'
 
       - name: Install Node dependencies
         run: |
           npm install
           npm install electron-builder --save-dev
+
+      - name: Prepare build resources
+        run: |
+          mkdir resources
+          xcopy /E /I python_env resources\python_env
+          xcopy /E /I models resources\models
+          copy config.json resources\
+          copy dist\main.exe resources\
 
       - name: Build Windows app
         env:
@@ -47,7 +58,6 @@ jobs:
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_PATH: ${{ env.pythonLocation }}\python.exe
         run: |
           npm run build:css
           npm run build:win
