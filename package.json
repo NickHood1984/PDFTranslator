@@ -14,7 +14,8 @@
     "build:css:watch": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind.min.css --watch",
     "build:mac": "npm run build:css && electron-builder --mac",
     "build:win": "npm run build:css && electron-builder --win",
-    "build:dir": "npm run build:css && electron-builder --dir"
+    "build:dir": "npm run build:css && electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.pdf.translator",
@@ -52,7 +53,9 @@
           ]
         }
       ],
-      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}"
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-Windows-${version}-${arch}.${ext}",
+      "publisherName": "PDF翻译工具"
     },
     "nsis": {
       "oneClick": false,
@@ -60,11 +63,22 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "PDF翻译工具"
+      "shortcutName": "PDF翻译工具",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "menuCategory": true,
+      "displayLanguageSelector": true
     },
     "directories": {
       "output": "dist",
       "buildResources": "build"
+    },
+    "protocols": {
+      "name": "pdf-translator-protocol",
+      "schemes": [
+        "pdf-translator"
+      ]
     }
   },
   "devDependencies": {
